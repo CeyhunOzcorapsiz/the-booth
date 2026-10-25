@@ -251,8 +251,10 @@ class _Simulator:
 
     # --- squad -----------------------------------------------------------------------------------------
     def _build_teams(self) -> dict[str, Team]:
-        names = [f"{first} {last}" for first in FIRST_NAMES for last in LAST_NAMES]
-        picked = self.rng.sample(names, len(SQUAD_LAYOUT) * 2)
+        # Surnames are unique within a match so commentary ("Vale scores!") is never ambiguous.
+        squad_size = len(SQUAD_LAYOUT) * 2
+        surnames = self.rng.sample(LAST_NAMES, squad_size)
+        picked = [f"{self.rng.choice(FIRST_NAMES)} {last}" for last in surnames]
         specs = {
             "home": ("Northstar FC", "NOR", "#c5f665"),
             "away": ("Ember Athletic", "EMB", "#ed9e83"),

@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from booth import __version__, qa
+from booth import __version__, moment, qa, telemetry
 from booth.agents import templates
 from booth.crew import Crew
 from booth.llm import LLMRuntime
@@ -25,6 +25,7 @@ from booth.sim.match import Match, generate_match
 
 load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+telemetry.configure()
 
 FRONTEND = Path(os.getenv("BOOTH_FRONTEND_DIR", Path(__file__).resolve().parents[2] / "frontend"))
 Seed = Annotated[int, Query(ge=0, le=2**32 - 1)]
@@ -114,6 +115,41 @@ async def ask(body: Question) -> dict:
     if body.lang not in LANGUAGES:
         raise HTTPException(400, "Unsupported language.")
     return await qa.answer(match_for(body.seed), body.minute, body.question, body.lang, runtime)
+
+
+class ProfileIn(BaseModel):
+    lang: str = "en"
+    style: str = "hype"
+    accessible: bool = False
+    follow: str | None = None
+
+
+class CompareRequest(BaseModel):
+    seed: int = Field(42, ge=0, le=2**32 - 1)
+    event_id: str = Field(..., pattern=r"^E\d{4}$")
+    profiles: list[ProfileIn] | None = Field(None, max_length=moment.MAX_PROFILES)
+
+
+@app.get("/api/moments")
+def moments(seed: Seed = 42) -> list[dict]:
+    """Highlights worth comparing across viewer profiles."""
+    return moment.highlights(match_for(seed))
+
+
+@app.post("/api/compare")
+async def compare(body: CompareRequest) -> dict:
+    """Run several viewer profiles over the same moment and return each broadcast with its trace."""
+    try:
+        profiles = (
+            [ViewerProfile(**p.model_dump()) for p in body.profiles]
+            if body.profiles
+            else list(moment.PRESETS)
+        )
+        return await moment.compare(match_for(body.seed), body.event_id, profiles, crew)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown event.") from exc
 
 
 if FRONTEND.is_dir():

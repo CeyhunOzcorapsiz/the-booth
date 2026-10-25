@@ -76,7 +76,7 @@ def describe_location(x: float, y: float, attacking: str | None, lang: str) -> s
 PBP = {
     "en": {
         "kickoff": ["{team} get us under way.", "And we're off, {team} kick off."],
-        "goal": ["GOAL! {p} scores for {team}! {score}.", "It's in! {p} finds the net, {team} {score}."],
+        "goal": ["GOAL! {p} scores for {team}! {score}.", "It's in! {p} finds the net for {team}. {score}."],
         "goal_calm": ["Goal for {team}, scored by {p}. {score}."],
         "shot_saved": ["{p} shoots, saved by the keeper.", "Effort from {p}, a comfortable stop."],
         "shot_off_target": ["{p} goes for goal but it's wide.", "{p} pulls the trigger, off target."],
@@ -167,18 +167,22 @@ def play_by_play(event: MatchEvent, match: Match, score: dict, lang: str, style:
     values["score"] = f"{match.teams['home'].name} {score['home']}-{score['away']} {match.teams['away'].name}"
     values["extra"] = event.detail.get("minutes", "")
     text = _pick(table[key], event.id).format(**values)
-    if style == "tactical" and event.type in ("shot", "pass", "foul", "tackle", "interception"):
-        text += " " + _tactical_suffix(event, lang)
+    if style == "tactical" and event.type in ("goal", "shot", "pass", "foul", "tackle", "interception"):
+        text += " " + _tactical_suffix(event, match, lang)
     if style == "hype" and event.type in ("goal", "red_card", "penalty_awarded"):
         text = text.rstrip(".!") + "!!"
     return f"{event.display_minute} {text}"
 
 
-def _tactical_suffix(event: MatchEvent, lang: str) -> str:
+def _tactical_suffix(event: MatchEvent, match: Match, lang: str) -> str:
     where = describe_location(event.x, event.y, event.team, lang)
     if event.type == "shot" and "distance_m" in event.detail:
-        d = event.detail["distance_m"]
-        return f"({d} m, {where})" if lang == "en" else f"({d} m, {where})"
+        return f"({event.detail['distance_m']} m, {where})"
+    if event.type == "goal":
+        assist = match.player(event.target)
+        if assist:
+            label = "asist" if lang == "tr" else "assist"
+            return f"({label}: {assist.short_name}, {where})"
     return f"({where})"
 
 

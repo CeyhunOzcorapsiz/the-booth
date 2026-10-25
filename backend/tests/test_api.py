@@ -48,3 +48,21 @@ def test_ask_answers_from_the_stats_desk():
     ).json()
     assert body["source"] == "template" and body["evidence"]
     assert client.post("/api/ask", json={"minute": 60, "question": ""}).status_code == 422
+
+
+def test_moments_and_side_by_side_compare():
+    highlights = client.get("/api/moments?seed=9").json()
+    goal = next(h for h in highlights if h["type"] == "goal")
+    body = client.post("/api/compare", json={"seed": 9, "event_id": goal["event_id"]}).json()
+    assert body["event"]["id"] == goal["event_id"]
+    assert len(body["broadcasts"]) == 3
+    texts = [b["segments"][0]["text"] for b in body["broadcasts"]]
+    assert len(set(texts)) == 3  # same goal, three different shows
+    assert all(b["trace"] for b in body["broadcasts"])
+    custom = client.post(
+        "/api/compare",
+        json={"seed": 9, "event_id": goal["event_id"], "profiles": [{"lang": "tr", "style": "calm"}]},
+    ).json()
+    assert custom["broadcasts"][0]["segments"][0]["lang"] == "tr"
+    assert client.post("/api/compare", json={"seed": 9, "event_id": "E9999"}).status_code == 404
+    assert client.post("/api/compare", json={"seed": 9, "event_id": "x"}).status_code == 422
