@@ -6,6 +6,18 @@ Built for the Microsoft × Premier League **Inside the Game** developer hackatho
 
 > Status: working prototype (v0.1). Runs fully offline with deterministic templates, and switches to live model-backed agents when a Microsoft Foundry (or GitHub Models) endpoint is configured.
 
+![Live broadcast: pitch, storyline and a fact-checked feed](docs/img/live.png)
+
+| Same moment, three shows | The control room |
+|---|---|
+| ![The 90th-minute winner broadcast for three different viewers](docs/img/compare.png) | ![Every agent hand-off, live](docs/img/control-room.png) |
+
+| Audio-first broadcast in Turkish | Build your broadcast | Mobile |
+|---|---|---|
+| ![Audio-first mode describing where the ball is, in Turkish](docs/img/audio-first-tr.png) | ![Choosing language, style and accessibility](docs/img/setup.png) | ![Mobile layout](docs/img/mobile.png) |
+
+Try the demo match directly: `/?live=1&seed=119&lang=en&style=hype&start=76` or `/?view=compare&seed=119`.
+
 ## The problem
 
 A live broadcast is made by a crew: a director, a play-by-play commentator, an analyst, a stats producer, graphics, a fact-checker, and a translator for every market. That crew makes **one** show, in **one** language, at **one** level of detail. Everyone else gets that one show, including:
@@ -26,6 +38,7 @@ The Booth replays a synthetic match event-by-event and runs a **multi-agent crew
 | **Analyst** | One or two sentences of context | Model, may only use facts on the sheet |
 | **Fact-checker** | Blocks anything that can't be traced to the data | Deterministic number and name checks, plus a model review for invented claims. Rejected drafts are **handed back** to the writer with the reasons, once |
 | **Localizer** | Adapts the world feed to each viewer's language | Model translation, refused if any number changes |
+| **Storyline** | Remembers the match: comebacks, late winners, braces, quick-fire goals, goals against the run of play, red cards | Deterministic tracker over the shared state; a new storyline makes the director put the analyst on air |
 | **Guide** | Rule explainers for beginners; pitch locations for audio-first viewers | Deterministic |
 | **Recap editor** | Half-time and full-time reports | Model or template |
 

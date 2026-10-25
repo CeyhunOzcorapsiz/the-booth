@@ -78,3 +78,33 @@ def test_surnames_are_unique_within_a_match():
         match = generate_match(seed)
         surnames = [p.short_name for t in match.teams.values() for p in t.players]
         assert len(surnames) == len(set(surnames))
+
+
+def test_storyline_agent_spots_the_seed_119_comeback():
+    match = generate_match(119)
+    state = MatchState(match)
+    for event in match.events:
+        state.apply(event)
+    kinds = [s.kind for s in state.story.storylines]
+    assert {"comeback", "quick_fire", "late_winner", "brace"} <= set(kinds)
+    assert "turnaround" not in kinds  # folded into the late winner
+    comeback = next(s for s in state.story.storylines if s.kind == "comeback")
+    assert comeback.team == "home" and comeback.numbers[0] == 2
+    assert state.snapshot()["storylines"]
+
+
+def test_on_pitch_lineups_follow_substitutions_and_red_cards():
+    for seed in range(40):
+        match = generate_match(seed)
+        state = MatchState(match)
+        for event in match.events:
+            state.apply(event)
+        reds = {"home": 0, "away": 0}
+        for e in match.events:
+            if e.type == "red_card":
+                reds[e.team] += 1
+        for team in ("home", "away"):
+            lineup = [pid for pid in state.on_pitch[team] if pid]
+            assert len(state.on_pitch[team]) == 11
+            assert len(lineup) == 11 - reds[team]
+            assert len(set(lineup)) == len(lineup)

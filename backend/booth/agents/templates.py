@@ -203,7 +203,7 @@ def spatial(event: MatchEvent, match: Match, lang: str) -> str:
     return f"{name} in possession, {where}."
 
 
-def color(event: MatchEvent, match: Match, sheet: FactSheet, lang: str) -> str:
+def color(event: MatchEvent, match: Match, sheet: FactSheet, lang: str, storylines: list[dict] = ()) -> str:
     """One or two sentences of analysis built only from facts on the sheet, shaped by the kind of moment."""
     lang = _lang(lang)
     tr = lang == "tr"
@@ -218,8 +218,12 @@ def color(event: MatchEvent, match: Match, sheet: FactSheet, lang: str) -> str:
 
     shots, on_target = val(f"F-{team}-shots"), val(f"F-{team}-shots_on_target")
     poss, momentum = val(f"F-{team}-possession_pct"), val("F-momentum")
-    parts: list[str] = []
-    if event.type == "goal" and player:
+    stories = sorted((st for st in storylines if st["event_id"] == event.id), key=_story_rank)
+    parts: list[str] = [st["tr"] if tr else st["en"] for st in stories[:2]]
+    has_tally = any(st["kind"] in ("brace", "hat_trick", "haul") for st in stories)
+    if parts and event.type == "goal":
+        pass  # the storyline already says what matters about this goal
+    elif event.type == "goal" and player and not has_tally:
         goals = val(f"F-{event.player}-goals")
         if goals and int(goals) > 1:
             parts.append(
@@ -286,8 +290,28 @@ def stat_caption(sheet: FactSheet, lang: str) -> str:
     return ("İstatistik: " if lang == "tr" else "Stats: ") + " · ".join(pairs)
 
 
+STORY_PRIORITY = (
+    "comeback",
+    "late_winner",
+    "late_equalizer",
+    "turnaround",
+    "hat_trick",
+    "down_to_ten",
+    "quick_fire",
+    "brace",
+    "against_the_run",
+    "haul",
+)
+
+
+def _story_rank(story: dict) -> int:
+    return STORY_PRIORITY.index(story["kind"]) if story["kind"] in STORY_PRIORITY else len(STORY_PRIORITY)
+
+
 def recap(match: Match, snapshot: dict, lang: str, final: bool) -> str:
     lang = _lang(lang)
+    stories = sorted(snapshot.get("storylines", []), key=_story_rank)
+    story = (" " + (stories[0]["tr"] if lang == "tr" else stories[0]["en"])) if stories else ""
     home, away = match.teams["home"].name, match.teams["away"].name
     s = snapshot["score"]
     th, ta = snapshot["teams"]["home"], snapshot["teams"]["away"]
@@ -296,14 +320,14 @@ def recap(match: Match, snapshot: dict, lang: str, final: bool) -> str:
         head = "Maç sonu" if final else "İlk yarı özeti"
         scorers = ", ".join(f"{m['player']} {m['minute']}" for m in goals) or "gol yok"
         return (
-            f"{head}: {home} {s['home']}-{s['away']} {away}. Goller: {scorers}. "
+            f"{head}: {home} {s['home']}-{s['away']} {away}.{story} Goller: {scorers}. "
             f"Topa sahip olma %{th['possession_pct']}-%{ta['possession_pct']}, "
             f"şutlar {th['shots']}-{ta['shots']} (isabetli {th['shots_on_target']}-{ta['shots_on_target']})."
         )
     head = "Full time" if final else "Half-time report"
     scorers = ", ".join(f"{m['player']} {m['minute']}" for m in goals) or "no goals"
     return (
-        f"{head}: {home} {s['home']}-{s['away']} {away}. Goals: {scorers}. "
+        f"{head}: {home} {s['home']}-{s['away']} {away}.{story} Goals: {scorers}. "
         f"Possession {th['possession_pct']}%-{ta['possession_pct']}%, "
         f"shots {th['shots']}-{ta['shots']} ({th['shots_on_target']}-{ta['shots_on_target']} on target)."
     )

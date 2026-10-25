@@ -93,11 +93,21 @@ class Crew:
             trace("crew", "cache", f"{len(cached)} segment(s) reused from another viewer", 0)
             return [replace(seg, job=job.id) for seg in cached]
 
+        new_stories = [
+            st for st in job.state.snapshot.get("storylines", []) if st["event_id"] == job.event.id
+        ]
+        for story in new_stories:
+            trace("storyline", "done", f"{story['kind'].replace('_', ' ')}: {story['en']}", 0)
+
         sheet, caption = FactSheet(), None
         if any(kind in ("color", "stats", "recap") for kind in job.kinds):
             timer = Timer()
             trace("stats-producer", "start", "pulling context with tools", 0)
             sheet, caption, source = await self.stats.collect(job, self.use_model(job))
+            if new_stories:
+                StatsDesk(
+                    job.state, sheet
+                ).storylines()  # writers always get the narrative behind this moment
             via = "model tool calls" if source == "ai" else "rule-based selection"
             trace("stats-producer", "done", f"{len(sheet)} facts via {via}", timer.ms)
 

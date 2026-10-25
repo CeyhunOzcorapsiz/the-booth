@@ -12,6 +12,8 @@
   <script type="module" src="/static/app.js"></script>
 </head>
 <body>
+<a class="skip-link" href="#feed">Skip to your broadcast</a>
+<h1 class="sr-only">The Booth: a personal, fact-checked live football broadcast</h1>
 <header class="topbar">
   <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="28" height="28"><span>the<b>booth</b></span></a>
   <div class="live" id="live"><i></i><span id="liveLabel">OFF AIR</span></div>
@@ -36,8 +38,9 @@
       <div class="bar-row"><span>Possession</span><div class="split-bar"><i id="possHome"></i></div><span id="possLabel">50 · 50</span></div>
       <div class="bar-row"><span>Momentum</span><div class="momentum"><i id="momentum"></i></div><span id="momentumLabel">even</span></div>
     </div>
+    <p class="storyline" id="storyline" aria-live="polite" hidden></p>
     <div class="pitch-wrap">
-      <svg id="pitch" viewBox="-3 -3 111 74" role="img" aria-label="Synthetic pitch showing the ball and the players involved">
+      <svg id="pitch" viewBox="-3 -3 111 76.5" role="img" aria-label="Synthetic pitch: the ball and all 22 players; players not involved in the latest event are placed illustratively">
         <defs>
           <pattern id="stripes" width="15" height="68" patternUnits="userSpaceOnUse">
             <rect width="7.5" height="68" fill="#213a28"/><rect x="7.5" width="7.5" height="68" fill="#1d3424"/>
@@ -53,9 +56,9 @@
         <g id="actors"></g>
         <g id="ball"><circle r="1.1" class="ball-glow"/><circle r=".75" class="ball"/></g>
         <text x="0" y="71.6" class="pitch-caption">NORTHSTAR ATTACK →</text>
-        <text x="105" y="71.6" class="pitch-caption" text-anchor="end">105 × 68 M · SYNTHETIC EVENT DATA</text>
+        <text x="105" y="71.6" class="pitch-caption" text-anchor="end">SYNTHETIC EVENTS · OTHER PLAYERS ILLUSTRATIVE</text>
       </svg>
-      <div class="event-toast" id="eventToast" hidden></div>
+      <div class="event-toast" id="eventToast" aria-hidden="true" hidden></div>
     </div>
     <ol class="moments" id="moments" aria-label="Key moments"></ol>
     <table class="stats" aria-label="Team statistics"><tbody id="statsBody"></tbody></table>
@@ -66,14 +69,14 @@
       <div><h2>Your broadcast</h2><div class="chips" id="profileChips"></div></div>
       <button class="voice-toggle" id="voiceToggle" aria-pressed="false" title="Read the broadcast aloud">🔈 Voice off</button>
     </div>
-    <ol class="feed" id="feed" aria-live="polite"></ol>
+    <ol class="feed" id="feed" aria-live="polite" aria-label="Broadcast lines, newest first" tabindex="-1"></ol>
     <p class="empty" id="feedEmpty">Set up your broadcast to go live.</p>
   </section>
 
   <section class="panel control-room" aria-label="Control room">
     <div class="panel-head"><div><h2>Control room</h2><p class="sub">Every agent hand-off, live</p></div><span class="badge muted" id="traceCount">0 steps</span></div>
     <div class="crew" id="crew"></div>
-    <ol class="trace" id="trace"></ol>
+    <ol class="trace" id="trace" aria-label="Agent hand-off log"></ol>
   </section>
 
   <section class="panel ask-panel" aria-label="Ask the booth">

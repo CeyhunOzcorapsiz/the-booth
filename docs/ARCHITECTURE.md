@@ -8,6 +8,16 @@
 4. The **producer** task hands jobs to the `Crew` (`booth/crew.py`). Routine jobs that fall more than 30 match-seconds behind live play are dropped; important ones (goals, red cards, whistles) always air.
 5. The crew runs the hand-offs below and emits `trace` messages for each step and `segment` messages for what goes on air.
 
+## The storyline agent
+
+`agents/storyline.py` runs inside `MatchState.apply`, so it sees every event in order and keeps memory across the whole match. It records storylines (comeback, turnaround, late equalizer or winner, brace or hat-trick, quick-fire goals, a goal against the run of play, down to ten) with the numbers behind them. When a storyline starts:
+
+- the director raises the moment's importance and always schedules the analyst;
+- the crew adds the storylines to the fact sheet, so model writers can use them and the fact-checker accepts their numbers;
+- templates and recaps lead with the most important storyline.
+
+The stats desk also exposes `storylines` as a tool for the model-backed stats producer.
+
 ## Hand-offs inside the crew
 
 ```

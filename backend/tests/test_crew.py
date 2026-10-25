@@ -193,3 +193,16 @@ async def test_evaluation_reports_offline_baseline():
     assert data["fact_check_pass_rate"] == 1.0
     assert data["sources"] == {"template": sum(data["segments"].values())}
     assert "seed 119" in to_markdown(119, runtime, reports)
+
+
+async def test_new_storyline_reaches_the_analyst_and_trace():
+    from booth.moment import PRESETS, compare, highlights
+
+    match = generate_match(119)
+    winner = [h for h in highlights(match) if h["type"] == "goal"][-1]["event_id"]
+    result = await compare(match, winner, [PRESETS[0]], Crew(None))
+    broadcast = result["broadcasts"][0]
+    color = next(s for s in broadcast["segments"] if s["kind"] == "color")
+    assert "late winner" in color["text"].lower()
+    assert any(e["id"].endswith("story-late_winner") for e in color["evidence"])
+    assert any(t["agent"] == "storyline" for t in broadcast["trace"])

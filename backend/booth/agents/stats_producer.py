@@ -10,7 +10,7 @@ from booth.llm import LLMRuntime, LLMUnavailable
 
 INSTRUCTIONS = """You are the stats producer of The Booth, an AI broadcast crew covering a SYNTHETIC football
 match between fictional clubs. For the moment you are given, call the tools to fetch the 2-4 statistics that
-best put it in context for viewers. Never guess a number: if you did not get it from a tool, do not use it.
+best put it in context for viewers. For goals and red cards, always check the storylines tool first. Never guess a number: if you did not get it from a tool, do not use it.
 Then reply with a single on-screen graphic caption of at most 14 words using only tool results."""
 
 
@@ -46,6 +46,7 @@ class StatsProducer:
             desk.team_stats("home")
             desk.team_stats("away")
             desk.key_moments()
+            desk.storylines()
             return
         if "stats" in job.kinds and "color" not in job.kinds:
             for stat in ("possession_pct", "shots", "shots_on_target", "corners"):
@@ -58,6 +59,8 @@ class StatsProducer:
         elif event.type in ("yellow_card", "red_card") and event.player:
             desk.player_stats(event.player)
         desk.momentum()
+        if any(story["event_id"] == event.id for story in job.state.snapshot.get("storylines", [])):
+            desk.storylines()
 
 
 def moment_context(job: Job) -> dict:

@@ -10,6 +10,7 @@ const AGENTS = [
   ["stats-producer", "Stats producer", "tool calls → facts"],
   ["play-by-play", "Play-by-play", "the call"],
   ["analyst", "Analyst", "context & colour"],
+  ["storyline", "Storyline", "remembers the match"],
   ["fact-checker", "Fact-checker", "traces every claim"],
   ["localizer", "Localizer", "your language"],
   ["guide", "Guide", "rules & pitch location"],
@@ -94,6 +95,8 @@ function setVoice(on) {
   voice.setEnabled(on);
   $("voiceToggle").setAttribute("aria-pressed", String(voice.enabled));
   $("voiceToggle").textContent = voice.enabled ? "🔊 Voice on" : "🔈 Voice off";
+  // When the booth reads aloud, don't make screen readers announce the same lines a second time.
+  $("feed").setAttribute("aria-live", voice.enabled ? "off" : "polite");
 }
 
 // ---------- broadcast ----------
@@ -124,6 +127,7 @@ function resetView() {
   $("feed").replaceChildren();
   $("trace").replaceChildren();
   $("moments").replaceChildren();
+  $("storyline").hidden = true;
   $("feedEmpty").hidden = true;
   traceSteps = 0;
   pitch.reset();
@@ -146,13 +150,26 @@ function onHello(msg) {
 
 function onEvent({ event, state }) {
   currentMinute = event.clock / 60;
-  pitch.show(event, players);
+  pitch.show(event, players, state);
   renderState(state);
   if (TOAST[event.type]) toast(TOAST[event.type] + (event.type === "shot" ? ` · ${event.outcome.replace("_", " ")}` : ""),
     BIG.has(event.type));
 }
 
+function renderStoryline(state) {
+  const story = state.storylines?.at(-1);
+  const box = $("storyline");
+  if (!story) {
+    box.hidden = true;
+    return;
+  }
+  const label = Object.assign(document.createElement("b"), { textContent: `STORYLINE · ${story.minute}` });
+  box.replaceChildren(label, document.createTextNode(profile?.lang === "tr" ? story.tr : story.en));
+  box.hidden = false;
+}
+
 function renderState(state) {
+  renderStoryline(state);
   $("homeScore").textContent = state.score.home;
   $("awayScore").textContent = state.score.away;
   $("minute").textContent = state.minute;
@@ -178,6 +195,7 @@ function renderState(state) {
       li.className = k.team ?? "";
       const icon = { goal: "⚽", yellow_card: "🟨", red_card: "🟥", substitution: "⇄", penalty_awarded: "◎" }[k.type] ?? "•";
       li.textContent = `${k.minute} ${icon} ${(k.player ?? "").split(" ").at(-1)}`;
+      li.setAttribute("aria-label", `${k.minute} ${k.type.replace("_", " ")}, ${k.player ?? ""}, ${meta.teams[k.team]?.name ?? ""}`);
       return li;
     }));
 }
@@ -268,6 +286,31 @@ $("askForm").addEventListener("submit", async (e) => {
 renderCrew();
 await loadOptions();
 await loadMatch(Number($("seed").value) || 0);
-initCompare({ voice, seed: () => profile?.seed ?? (Number($("seed").value) || 0), model: () => llm.model,
-  languages: () => [...$("lang").options].map((o) => [o.value, o.textContent]) });
-$("setup").showModal();
+const compareView = initCompare({ voice, seed: () => profile?.seed ?? (Number($("seed").value) || 0),
+  model: () => llm.model, languages: () => [...$("lang").options].map((o) => [o.value, o.textContent]) });
+
+// Deep links, handy for demos and screenshots:
+//   ?live=1&seed=119&lang=tr&style=beginner&accessible=1&start=76&speed=20&follow=H9
+//   ?view=compare&seed=119&event=E0990
+const params = new URLSearchParams(location.search);
+if (params.has("seed")) {
+  $("seed").value = params.get("seed");
+  await loadMatch(Number(params.get("seed")) || 0);
+}
+if (params.get("view") === "compare") {
+  compareView.open(params.get("event"));
+} else if (params.get("live") === "1") {
+  const style = params.get("style") ?? "hype";
+  profile = {
+    seed: Number($("seed").value) || 0, lang: params.get("lang") ?? "en", style,
+    accessible: params.get("accessible") === "1", follow: params.get("follow") ?? "",
+    speed: params.get("speed") ?? "20", start: Number(params.get("start")) || 0,
+  };
+  $("lang").value = profile.lang;
+  document.querySelector(`input[name=style][value="${CSS.escape(style)}"]`)?.click();
+  $("accessible").checked = profile.accessible;
+  if (profile.accessible && params.get("voice") !== "0") setVoice(true);
+  goLive();
+} else {
+  $("setup").showModal();
+}

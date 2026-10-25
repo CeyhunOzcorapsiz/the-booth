@@ -7,6 +7,7 @@ Rules from the brief: **under 2:00**, show the project running, public link (You
 - Foundry configured (`bash infra/deploy.sh --local-only`): the top-bar badge reads `FOUNDRY · gpt-4.1-mini`, and segments say `AI · gpt-4.1-mini`.
 - Seed **119**: Ember Athletic lead 2–0 after an hour; Northstar FC come back to win 3–2 with goals at 78', 82' and 90'.
 - Run each broadcast once before recording so segments are cached and appear instantly.
+- Deep links skip the setup dialog: `/?live=1&seed=119&lang=tr&style=beginner&accessible=1&start=76&speed=10` and `/?view=compare&seed=119`.
 - Browser at 1440×900, zoom 100%, notifications off. Record with OBS Studio (free) or the Xbox Game Bar (Win+G).
 - Voice: use your own narration, or the app's own voice output. No background music, or only royalty-free music you have the rights to.
 

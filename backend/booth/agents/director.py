@@ -85,7 +85,14 @@ class Director:
             if not routine or clock - self._last_line >= MIN_GAP_S:
                 if not (followed and routine and clock - self._last_follow < FOLLOW_GAP_S):
                     kinds.append("pbp")
-        if importance >= COLOR_THRESHOLD[style] and event.type not in ("half_time", "full_time", "kickoff"):
+        new_story = bool(state.new_storylines)
+        if new_story:
+            importance = max(importance, 0.9)  # the storyline agent flagged a narrative worth airing
+        if (importance >= COLOR_THRESHOLD[style] or new_story) and event.type not in (
+            "half_time",
+            "full_time",
+            "kickoff",
+        ):
             kinds.append("color")
         if style == "beginner" and event.type in EXPLAINABLE and event.type not in self._explained:
             kinds.append("explain")

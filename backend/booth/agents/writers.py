@@ -97,7 +97,7 @@ class Writers:
                 )
             return text
         if kind == "color":
-            return templates.color(event, match, sheet, lang)
+            return templates.color(event, match, sheet, lang, snapshot.get("storylines", []))
         if kind == "recap":
             return templates.recap(match, snapshot, lang, final=event.type == "full_time")
         if kind == "stats":

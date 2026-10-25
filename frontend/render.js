@@ -11,7 +11,9 @@ export function segmentCard(seg, model) {
   const li = make("li", `segment${seg.importance >= 0.9 ? " big" : ""}${small ? " small" : ""}`);
   const head = make("div", "segment-head");
   head.append(make("span", `speaker ${seg.kind}`, seg.speaker), make("span", "", seg.minute));
-  li.append(head, make("div", "segment-text", seg.text), segmentFoot(seg, model));
+  const text = make("div", "segment-text", seg.text);
+  text.lang = seg.lang; // screen readers switch pronunciation for Turkish, Spanish, ...
+  li.append(head, text, segmentFoot(seg, model));
   return li;
 }
 

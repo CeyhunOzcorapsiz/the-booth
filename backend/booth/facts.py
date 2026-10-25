@@ -177,6 +177,20 @@ class StatsDesk:
         )
         return {"fact_id": fact.id, "moments": moments}
 
+    def storylines(self) -> dict:
+        """Narratives the storyline agent has spotted so far: comebacks, late winners, braces, quick-fire goals."""
+        stories = self.state.snapshot.get("storylines", [])
+        out = []
+        for story in stories:
+            owner = story["player"] or story["team"] or "match"
+            fact = self.sheet.add(
+                Fact(f"F-{owner}-story-{story['kind']}", "Storyline", story["en"], tuple(story["numbers"]))
+            )
+            out.append(
+                {"fact_id": fact.id, "minute": story["minute"], "kind": story["kind"], "text": story["en"]}
+            )
+        return {"storylines": out}
+
     def as_tools(self) -> list:
         """Wrap the desk methods as Microsoft Agent Framework function tools."""
         from agent_framework import tool
@@ -190,5 +204,6 @@ class StatsDesk:
                 self.player_stats,
                 self.momentum,
                 self.key_moments,
+                self.storylines,
             )
         ]

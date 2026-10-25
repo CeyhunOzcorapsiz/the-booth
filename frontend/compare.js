@@ -25,6 +25,7 @@ export function initCompare({ voice, seed, model, languages }) {
   $("comparePlay").addEventListener("click", playAll);
 
   let loadedSeed = null;
+  let preferred = null;
   async function loadMoments() {
     if (loadedSeed === seed()) return;
     loadedSeed = seed();
@@ -32,6 +33,7 @@ export function initCompare({ voice, seed, model, languages }) {
     const select = $("compareMoment");
     select.replaceChildren(...list.map((m) => new Option(m.label, m.event_id)));
     $("compareSeed").textContent = `seed ${loadedSeed}`;
+    if (preferred && list.some((m) => m.event_id === preferred)) select.value = preferred;
     if (list.length) run();
   }
 
@@ -61,6 +63,13 @@ export function initCompare({ voice, seed, model, languages }) {
     voice.setEnabled(true);
     for (const c of columns) for (const seg of c.segments) voice.say(seg.text, seg.lang);
   }
+
+  return {
+    open(eventId) {
+      preferred = eventId;
+      document.querySelector('[data-view="compare"]').click();
+    },
+  };
 }
 
 function buildColumn(preset, index, languages) {

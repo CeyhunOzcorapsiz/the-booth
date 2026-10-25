@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
+from booth.agents.storyline import Storyline, StorylineTracker
 from booth.sim.match import Match, MatchEvent
 
 MOMENTUM_WINDOW_S = 300
@@ -49,11 +50,20 @@ class MatchState:
     )
     players: dict[str, dict[str, int]] = field(default_factory=lambda: defaultdict(_player_counters))
     key_moments: list[dict] = field(default_factory=list)
+    story: StorylineTracker = field(default_factory=StorylineTracker)
+    on_pitch: dict[str, list[str | None]] = field(default_factory=dict)  # slot order, None = sent off
+    new_storylines: list[Storyline] = field(default_factory=list)
     last_event: MatchEvent | None = None
     possession: str | None = None
     _momentum: deque = field(default_factory=deque)
 
     # --- updates ---------------------------------------------------------------------------------------
+    def __post_init__(self) -> None:
+        if not self.on_pitch:
+            self.on_pitch = {
+                key: [p.id for p in team.players if p.starter] for key, team in self.match.teams.items()
+            }
+
     def apply(self, event: MatchEvent) -> None:
         if self.last_event is not None and self.possession and event.period == self.last_event.period:
             self.teams[self.possession]["possession_s"] += max(0.0, event.clock - self.last_event.clock)
@@ -95,6 +105,9 @@ class MatchState:
             case "yellow_card" | "red_card":
                 t[f"{event.type}s"] += 1
                 p[f"{event.type}s"] += 1
+                if event.type == "red_card" and player in self.on_pitch[team]:
+                    # keep the slot empty so everyone else keeps their position in the shape
+                    self.on_pitch[team][self.on_pitch[team].index(player)] = None
             case "tackle" | "interception":
                 t[f"{event.type}s"] += 1
                 p[f"{event.type}s"] += 1
@@ -102,11 +115,16 @@ class MatchState:
                 t["offsides"] += 1
             case "substitution":
                 t["substitutions"] += 1
+                lineup = self.on_pitch[team]
+                off, on = event.detail.get("off"), event.detail.get("on")
+                if off in lineup:
+                    lineup[lineup.index(off)] = on  # the substitute takes the same slot
         if event.type in KEY_MOMENT_TYPES:
             self.key_moments.append(self._moment(event))
         self.possession = event.possession
         self.last_event = event
         self._trim_momentum(event)
+        self.new_storylines = self.story.observe(event, self)
 
     def _final_third(self, team: str, x: float) -> bool:
         return x > 70 if team == "home" else x < 35
@@ -192,4 +210,6 @@ class MatchState:
             "momentum": self.momentum(),
             "teams": {team: self.team_line(team) for team in ("home", "away")},
             "key_moments": self.key_moments[-12:],
+            "storylines": [s.to_dict() for s in self.story.storylines[-8:]],
+            "on_pitch": {team: list(ids) for team, ids in self.on_pitch.items()},
         }
