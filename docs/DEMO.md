@@ -20,6 +20,7 @@ Rules from the brief: **under 2:00**, show the project running, public link (You
 | 0:25–0:45 | Go live at minute 76. Pitch moves, feed fills, voice reads aloud, a rule explainer appears | "Agents commentate live. The guide explains the rules when they come up, and tells me where the ball is, because I can't see it." |
 | 0:45–1:05 | Control room: director planned, stats producer tool calls, fact-checker approved / rejected, localizer | "Behind it is a multi-agent crew on Microsoft Agent Framework and Foundry. The director decides what matters to me. The stats producer pulls numbers with tool calls. The fact-checker blocks anything it can't trace to the data and sends it back for a rewrite." |
 | 1:05–1:30 | "Same moment, 3 shows": the 90' winner, three columns | "Same goal, three fans: a hype call in English, a calm Turkish explainer, a tactical breakdown. Every line is verified. Click any line to see its sources." |
+| (optional, if time) | Favorite club = Northstar: the 90' winner opens with "Yes!"; a lower third and a stat card slide over the pitch | "Pick your club and the booth is on your side, but never makes up a number." |
 | 1:30–1:45 | Ask the booth: "Who's had more of the ball?" → answer with sources | "Fans can ask questions, answered only from the stats desk at the minute they're watching." |
 | 1:45–1:58 | Application Insights trace, or the GitHub repo, then the end card | "It runs on Azure Container Apps with every agent hand-off traced in Application Insights. The Booth: one match, a broadcast for every fan." |
 

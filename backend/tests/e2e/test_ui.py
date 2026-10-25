@@ -124,3 +124,16 @@ def test_interface_switches_to_turkish_and_remembers_it(page, base_url):
     assert page.locator("#goLive").inner_text() == "Yayına başla"
     page.click("#uiLang")
     assert page.locator(".control-room h2").inner_text() == "Control room"
+
+
+def test_overlays_metrics_and_favorite_club(page, base_url):
+    page.goto(f"{base_url}/?live=1&seed=119&lang=en&style=hype&club=home&start=89&speed=10")
+    playwright_api.expect(page.locator("#lowerThird")).to_contain_text("GOAL", timeout=20_000)
+    playwright_api.expect(page.locator("#feed")).to_contain_text("Yes!")
+    assert "supports Northstar FC" in page.locator("#profileChips").inner_text()
+    stats = page.locator("#statsBody").inner_text()
+    assert "Pass accuracy %" in stats and "Fastest shot (km/h)" in stats
+    assert (
+        page.locator("#chaosLabel").inner_text() in ("controlled", "open", "chaotic")
+        or "·" in page.locator("#chaosLabel").inner_text()
+    )

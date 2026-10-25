@@ -60,7 +60,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
 .score i { color: var(--muted); font-style: normal; font-size: 24px; }
 .score small { position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--lime); }
 .bars { margin: 14px 0 10px; display: grid; gap: 6px; }
-.bar-row { display: grid; grid-template-columns: max-content 1fr 74px; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+.bar-row { display: grid; grid-template-columns: max-content 1fr minmax(74px, max-content); align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
 .bar-row > span:last-child { text-align: right; font-family: var(--mono); }
 .split-bar, .momentum { height: 6px; border-radius: 4px; background: var(--coral); overflow: hidden; position: relative; }
 .split-bar i { display: block; height: 100%; width: 50%; background: var(--lime); transition: width .6s; }

@@ -53,6 +53,31 @@ The **control room** panel shows every hand-off live: what the director planned,
 - **One crew, many viewers.** Segments are cached per (event, profile), and the English world feed is shared before localization, so viewers with the same profile don't cost extra model calls.
 - **No future leaks.** Agents read a frozen snapshot taken at the moment of the event.
 
+## How it meets the challenge
+
+The brief asks for one pipeline with five stages. Here is where each one lives:
+
+| Stage | In The Booth |
+|---|---|
+| **Ingest** synthetic events as they happen | Seeded generator (`booth/sim`) streams ~1,000 events per match (passes, tackles, interceptions, shots, possession changes, cards, set pieces, subs) on a live match clock |
+| **Interpret** into stats, patterns and context | Shared `MatchState`: score, possession, momentum, pass accuracy and difficulty, shot speed, rhythm (control vs chaos); the **storyline agent** finds comebacks, late winners, braces, quick-fire goals, spells of control |
+| **Explain** why a moment matters | Analyst, recap editor and guide explain moments with fact-checked numbers; every line links to its sources; rule explainers for newcomers |
+| **Render** on screen alongside the match | Pitch with all 22 players, storyline banner, stat rows and call-outs; **timed overlay cues** (score bug, lower thirds, stat cards, player tags) for a graphics engine: [docs/OVERLAYS.md](docs/OVERLAYS.md) |
+| **Personalize** for every fan | Language, style (hype, calm, tactical, new to football), audio-first mode, favorite club, followed player; "same moment, three shows" puts the difference side by side |
+
+And the suggested features:
+
+| Suggested in the brief | Status |
+|---|---|
+| Player identification with speed and distance indicators at thresholds | Players named on the pitch; shot speed and pass distance tags appear on the player at thresholds. Running speed and distance covered are **not** modeled (event data, no tracking) |
+| Pass quality: distance, accuracy, difficulty rating | Done: per-pass distance, metres gained, 0-100 difficulty; team pass accuracy |
+| Speed metrics: ball speed, shot speed | Done: synthetic estimates on every pass and shot |
+| Auto-eventing from a video feed | **Not in scope**: we generate synthetic events instead of reading video |
+| Narrative generation, milestones, recaps | Done: storyline agent, analyst, half and full-time recaps |
+| Explainability: control vs chaos, pressure changes, rhythm | Done: rhythm meter, momentum, storyline announcements when a team takes control or the game breaks up |
+| Data innovation: synthetic datasets | Done: `python -m booth.dataset` exports matches, events, players, storylines ([docs/DATASET.md](docs/DATASET.md)) |
+| Multi-language storytelling | English and Turkish templates; 12 languages with a model, translations refused if numbers change |
+
 ## Architecture
 
 ```mermaid
@@ -117,7 +142,7 @@ cd backend
 python -m booth.mcp_server            # stdio; add --http --port 8765 for streamable HTTP
 ```
 
-The MCP server exposes the stats desk and the crew as tools: `squads`, `highlights`, `score`, `team_stats`, `player_stats`, `storylines`, `events` and `broadcast_moment` (the fact-checked crew commentates one moment for a language and style). `.vscode/mcp.json` registers it for GitHub Copilot agent mode in VS Code.
+The MCP server exposes the stats desk and the crew as tools: `squads`, `highlights`, `score`, `team_stats`, `player_stats`, `storylines`, `events`, `overlay_cues` and `broadcast_moment` (the fact-checked crew commentates one moment for a language and style). `.vscode/mcp.json` registers it for GitHub Copilot agent mode in VS Code.
 
 ### Export the synthetic dataset
 
@@ -159,6 +184,7 @@ The tests include a scripted model that exercises the reject → rewrite hand-of
 | `GET /api/match/events?seed=42` | Full synthetic event log |
 | `GET /api/broadcast?seed=&lang=&style=&accessible=&follow=&speed=&start=` | Live broadcast as SSE: `hello`, `event`, `trace`, `segment`, `end` |
 | `POST /api/ask` | `{seed, minute, question, lang}`: answered from the stats desk at that minute |
+| `GET /api/overlays?seed=&lang=` | Timed overlay cues for broadcast graphics |
 | `GET /api/moments?seed=` | Highlights worth comparing (goals, penalties, red cards, big saves) |
 | `POST /api/tts` | `{text, lang}` → MP3 from Azure AI Speech (503 when not configured) |
 | `POST /api/compare` | `{seed, event_id, profiles?}`: the same moment broadcast for up to 4 profiles, with traces |
