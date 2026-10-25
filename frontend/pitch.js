@@ -56,6 +56,10 @@ export class Pitch {
     }
 
     const pinned = {};
+    this.tags = {};
+    const d = event.detail ?? {};
+    if (event.type === "shot" && d.ball_speed_kmh >= 100) this.tags[event.player] = `${d.ball_speed_kmh} km/h`;
+    if (event.type === "pass" && d.pass_distance_m >= 45) this.tags[event.player] = `${Math.round(d.pass_distance_m)} m`;
     if (event.type !== "substitution") {
       if (event.player) pinned[event.player] = [event.x, event.y];
       if (event.target && hasEnd && event.type === "pass") pinned[event.target] = [endX, endY];
@@ -115,6 +119,9 @@ export class Pitch {
       this.dots.set(player.id, dot);
     }
     dot.classList.toggle("active", active);
+    const name = player.name.split(" ").at(-1);
+    const tag = active ? this.tags?.[player.id] : null;
+    dot.querySelector(".label").textContent = tag ? `${name} · ${tag}` : name;
     dot.style.transform = `translate(${x}px, ${y}px)`;
     if (active) this.layer.append(dot); // draw on top
   }

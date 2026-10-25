@@ -123,3 +123,29 @@ def test_dataset_export_writes_joinable_tables(tmp_path):
     events = list(csv.DictReader(open(tmp_path / "events.csv", encoding="utf-8")))
     assert {e["match_id"] for e in events} == {"M000119", "M000120"}
     assert sum(1 for _ in open(tmp_path / "events.jsonl", encoding="utf-8")) == len(events)
+
+
+def test_pass_quality_and_speed_metrics():
+    match = generate_match(119)
+    passes = [e for e in match.events if e.type == "pass"]
+    assert {"complete", "intercepted"} == {e.outcome for e in passes}
+    for e in passes:
+        assert 5 <= e.detail["difficulty"] <= 99 and 25 <= e.detail["ball_speed_kmh"] <= 105
+    shots = [e for e in match.events if e.type == "shot"]
+    assert all(40 <= s.detail["ball_speed_kmh"] <= 130 for s in shots)
+    long_forward = max(passes, key=lambda e: e.detail["pass_distance_m"] + e.detail["progressive_m"])
+    short_back = min(passes, key=lambda e: e.detail["pass_distance_m"] + e.detail["progressive_m"])
+    assert long_forward.detail["difficulty"] > short_back.detail["difficulty"]
+    state = MatchState(match)
+    for event in match.events:
+        state.apply(event)
+    line = state.team_line("home")
+    assert 80 <= line["pass_accuracy_pct"] <= 98
+    assert line["fastest_shot_kmh"] == max(s.detail["ball_speed_kmh"] for s in shots if s.team == "home")
+    desk = StatsDesk(state.freeze())
+    assert desk.pass_quality("home")["pass_accuracy_pct"]["value"] == line["pass_accuracy_pct"]
+
+
+def test_enrichment_keeps_the_seeded_story():
+    goals = [(e.display_minute, e.team) for e in generate_match(119).events if e.type == "goal"]
+    assert goals == [("20'", "away"), ("60'", "away"), ("78'", "home"), ("82'", "home"), ("90'", "home")]

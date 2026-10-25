@@ -32,6 +32,11 @@ const TR = {
   "Fouls": "Faul",
   "Yellow cards": "Sarı kart",
   "Saves": "Kurtarış",
+  "Fastest shot (km/h)": "En hızlı şut (km/sa)",
+  "Pass accuracy %": "Pas isabeti %",
+  "Avg pass difficulty (0-100)": "Ort. pas zorluğu (0-100)",
+  "KILLER PASS": "KİLİT PAS",
+  "LONG BALL": "UZUN TOP",
   // event toasts
   "GOAL": "GOL", "SHOT": "ŞUT", "CORNER": "KORNER", "FOUL": "FAUL", "YELLOW CARD": "SARI KART",
   "RED CARD": "KIRMIZI KART", "PENALTY": "PENALTI", "OFFSIDE": "OFSAYT", "SUBSTITUTION": "OYUNCU DEĞİŞİKLİĞİ",

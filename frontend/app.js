@@ -22,8 +22,13 @@ const TOAST = { goal: "GOAL", shot: "SHOT", corner: "CORNER", foul: "FOUL", yell
   red_card: "RED CARD", penalty_awarded: "PENALTY", offside: "OFFSIDE", substitution: "SUBSTITUTION",
   kickoff: "KICK-OFF", half_time: "HALF TIME", full_time: "FULL TIME", free_kick: "FREE KICK" };
 const STAT_ROWS = [["possession_pct", "Possession %"], ["shots", "Shots"], ["shots_on_target", "On target"],
-  ["corners", "Corners"], ["passes", "Passes"], ["fouls", "Fouls"], ["yellow_cards", "Yellow cards"],
-  ["saves", "Saves"]];
+  ["fastest_shot_kmh", "Fastest shot (km/h)"], ["corners", "Corners"], ["passes", "Passes"],
+  ["pass_accuracy_pct", "Pass accuracy %"], ["avg_pass_difficulty", "Avg pass difficulty (0-100)"],
+  ["fouls", "Fouls"], ["yellow_cards", "Yellow cards"], ["saves", "Saves"]];
+// Thresholds for metric call-outs (the brief's "indicators triggered when predefined thresholds are reached").
+const FAST_SHOT_KMH = 100;
+const LONG_BALL_M = 45;
+const KILLER_PASS = 80;
 
 const voice = new Voice();
 const pitch = new Pitch($("pitch"), COLORS);
@@ -160,8 +165,16 @@ function onEvent({ event, state }) {
   currentPeriod = event.period;
   pitch.show(event, players, state);
   renderState(state);
-  if (TOAST[event.type]) toast(t(TOAST[event.type]) + (event.type === "shot" ? ` · ${t(event.outcome.replace("_", " "))}` : ""),
-    BIG.has(event.type));
+  const d = event.detail ?? {};
+  if (event.type === "shot" && d.ball_speed_kmh >= FAST_SHOT_KMH) {
+    toast(`${t("SHOT")} · ${d.ball_speed_kmh} km/h · ${t(event.outcome.replace("_", " "))}`, true);
+  } else if (event.type === "pass" && event.outcome === "complete" && d.difficulty >= KILLER_PASS) {
+    toast(`${t("KILLER PASS")} · ${d.difficulty}/100`, false);
+  } else if (event.type === "pass" && event.outcome === "complete" && d.pass_distance_m >= LONG_BALL_M) {
+    toast(`${t("LONG BALL")} · ${Math.round(d.pass_distance_m)} m`, false);
+  } else if (TOAST[event.type]) {
+    toast(t(TOAST[event.type]) + (event.type === "shot" ? ` · ${t(event.outcome.replace("_", " "))}` : ""), BIG.has(event.type));
+  }
 }
 
 // Same order as the server's STORY_PRIORITY: when one moment starts several storylines, show the biggest.

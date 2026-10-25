@@ -99,6 +99,7 @@ PBP = {
         "half_time": ["Half time. {score}."],
         "full_time": ["Full time! It finishes {score}."],
         "pass": ["{p} plays it to {t}.", "{p} finds {t}."],
+        "pass_intercepted": ["{p}'s pass is cut out.", "{p} tries to play it forward, intercepted."],
         "tackle": ["Strong tackle from {p} on {t}."],
         "interception": ["{p} reads it and intercepts."],
     },
@@ -124,6 +125,7 @@ PBP = {
         "half_time": ["İlk yarı sona erdi. {score}."],
         "full_time": ["Maç sona erdi! Skor {score}."],
         "pass": ["{p} pasını verdi, topla buluşan {t}.", "{p} oyunu kurdu, top artık {t} ayağında."],
+        "pass_intercepted": ["{p} pas denedi, araya girildi.", "{p} ileri oynamak istedi, top kesildi."],
         "tackle": ["{p} sert bir müdahaleyle topu kazandı."],
         "interception": ["{p} pası okudu ve araya girdi."],
     },
@@ -161,6 +163,8 @@ def play_by_play(event: MatchEvent, match: Match, score: dict, lang: str, style:
         key = f"shot_{event.outcome}" if f"shot_{event.outcome}" in table else "shot_saved"
     if event.type == "goal" and style == "calm":
         key = "goal_calm"
+    if event.type == "pass" and event.outcome == "intercepted":
+        key = "pass_intercepted"
     if key not in table:
         return ""
     values = _names(match, event)
@@ -169,6 +173,11 @@ def play_by_play(event: MatchEvent, match: Match, score: dict, lang: str, style:
     text = _pick(table[key], event.id).format(**values)
     if style == "tactical" and event.type in ("goal", "shot", "pass", "foul", "tackle", "interception"):
         text += " " + _tactical_suffix(event, match, lang)
+    speed = event.detail.get("ball_speed_kmh", 0)
+    if style in ("hype", "calm", "beginner") and event.type == "shot" and speed >= 100:
+        text += f" Top {speed} km/sa hızla gitti." if lang == "tr" else f" Struck at {speed} km/h!"
+    if style == "hype" and event.type == "pass" and event.detail.get("difficulty", 0) >= 80:
+        text += " Ne pas!" if lang == "tr" else " What a ball!"
     if style == "hype" and event.type in ("goal", "red_card", "penalty_awarded"):
         text = text.rstrip(".!") + "!!"
     return f"{event.display_minute} {text}"
@@ -177,7 +186,12 @@ def play_by_play(event: MatchEvent, match: Match, score: dict, lang: str, style:
 def _tactical_suffix(event: MatchEvent, match: Match, lang: str) -> str:
     where = describe_location(event.x, event.y, event.team, lang)
     if event.type == "shot" and "distance_m" in event.detail:
-        return f"({event.detail['distance_m']} m, {where})"
+        speed = event.detail.get("ball_speed_kmh")
+        kmh = (f", {speed} km/sa" if lang == "tr" else f", {speed} km/h") if speed else ""
+        return f"({event.detail['distance_m']} m{kmh}, {where})"
+    if event.type == "pass" and "pass_distance_m" in event.detail:
+        label = "zorluk" if lang == "tr" else "difficulty"
+        return f"({event.detail['pass_distance_m']} m, {label} {event.detail['difficulty']}/100, {where})"
     if event.type == "goal":
         assist = match.player(event.target)
         if assist:

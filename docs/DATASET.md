@@ -25,9 +25,11 @@ All tables join on `match_id` (`M000119` for seed 119) and `player_id` (`H9` = h
 | `type` | `kickoff, pass, tackle, interception, foul, free_kick, penalty_awarded, shot, goal, corner, offside, yellow_card, red_card, substitution, stoppage_time, half_time, full_time` |
 | `team`, `player_id`, `target_id` | Acting team and player; target is the receiver, the fouled player, the assist provider (on goals) or the player substituted off |
 | `x`, `y`, `end_x`, `end_y` | Metres on a 105 × 68 pitch; home always attacks towards x = 105 |
-| `outcome` | Passes: `complete`; shots: `goal, saved, blocked, off_target` |
+| `outcome` | Passes: `complete` or `intercepted`; shots: `goal, saved, blocked, off_target` |
 | `possession`, `phase` | Team in possession after the event; possession-phase counter |
 | `distance_m`, `chance_quality`, `body_part`, `situation` | Shots only. `chance_quality` is a synthetic number from distance and angle, **not** an xG model |
+| `pass_distance_m`, `progressive_m`, `difficulty` | Passes only. Distance, metres gained towards goal, and a 0-100 difficulty rating (longer, more forward, into the final third or box, switches of play are harder) |
+| `ball_speed_kmh` | Passes and shots. Synthetic speed estimate (what a tracking provider would supply) |
 
 ### `players.csv`, one row per player per match
 

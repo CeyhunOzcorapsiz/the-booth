@@ -44,6 +44,10 @@ EVENT_FIELDS = [
     "chance_quality",
     "body_part",
     "situation",
+    "pass_distance_m",
+    "progressive_m",
+    "difficulty",
+    "ball_speed_kmh",
 ]
 MATCH_FIELDS = [
     "match_id",
@@ -131,6 +135,10 @@ def match_rows(seed: int) -> dict[str, list[dict]]:
                 "chance_quality": e.detail.get("chance_quality"),
                 "body_part": e.detail.get("body_part"),
                 "situation": e.detail.get("situation"),
+                "pass_distance_m": e.detail.get("pass_distance_m"),
+                "progressive_m": e.detail.get("progressive_m"),
+                "difficulty": e.detail.get("difficulty"),
+                "ball_speed_kmh": e.detail.get("ball_speed_kmh"),
                 "detail": e.detail,
             }
         )

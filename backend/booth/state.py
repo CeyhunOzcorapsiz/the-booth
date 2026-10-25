@@ -88,12 +88,22 @@ class MatchState:
             case "pass":
                 t["passes"] += 1
                 p["passes"] += 1
+                if event.outcome == "complete":
+                    t["passes_completed"] += 1
+                    p["passes_completed"] += 1
+                    t["pass_difficulty_sum"] += event.detail.get("difficulty", 0)
+                    if event.detail.get("difficulty", 0) >= 65:
+                        t["hard_passes_completed"] += 1
+                        p["hard_passes_completed"] += 1
                 if event.end_x is not None and self._final_third(team, event.end_x):
                     t["final_third_entries"] += 1
                     self._push_momentum(event, MOMENTUM_WEIGHTS["pass"])
             case "shot":
                 t["shots"] += 1
                 p["shots"] += 1
+                speed = event.detail.get("ball_speed_kmh", 0)
+                t["fastest_shot_kmh"] = max(t["fastest_shot_kmh"], speed)
+                p["fastest_shot_kmh"] = max(p["fastest_shot_kmh"], speed)
                 if event.outcome in ("goal", "saved"):
                     t["shots_on_target"] += 1
                     p["shots_on_target"] += 1
@@ -200,6 +210,12 @@ class MatchState:
             "yellow_cards": int(t["yellow_cards"]),
             "red_cards": int(t["red_cards"]),
             "passes": int(t["passes"]),
+            "pass_accuracy_pct": round(100 * t["passes_completed"] / t["passes"]) if t["passes"] else 0,
+            "avg_pass_difficulty": round(t["pass_difficulty_sum"] / t["passes_completed"])
+            if t["passes_completed"]
+            else 0,
+            "hard_passes_completed": int(t["hard_passes_completed"]),
+            "fastest_shot_kmh": int(t["fastest_shot_kmh"]),
             "saves": int(t["saves"]),
             "offsides": int(t["offsides"]),
             "final_third_entries": int(t["final_third_entries"]),

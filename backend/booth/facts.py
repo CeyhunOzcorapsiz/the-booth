@@ -133,6 +133,9 @@ class StatsDesk:
         out = {"player": p.name, "number": p.number, "team": self._team_name(p.team), "position": p.position}
         for stat in (
             "passes",
+            "passes_completed",
+            "hard_passes_completed",
+            "fastest_shot_kmh",
             "shots",
             "shots_on_target",
             "goals",
@@ -177,6 +180,24 @@ class StatsDesk:
         )
         return {"fact_id": fact.id, "moments": moments}
 
+    def pass_quality(self, team: Annotated[str, "'home' or 'away' (or the club name)"]) -> dict:
+        """Pass accuracy, average difficulty (0-100) of completed passes, hard passes completed, fastest shot."""
+        key = self._resolve_team(team)
+        line = self.state.snapshot["teams"][key]
+        name = self._team_name(key)
+        labels = {
+            "pass_accuracy_pct": "pass accuracy %",
+            "avg_pass_difficulty": "average pass difficulty (0-100)",
+            "hard_passes_completed": "hard passes completed",
+            "fastest_shot_kmh": "fastest shot (km/h)",
+        }
+        out = {"team": name}
+        for stat, label in labels.items():
+            value = line[stat]
+            fact = self.sheet.add(Fact(f"F-{key}-{stat}", f"{name} {label}", str(value), (value,)))
+            out[stat] = {"value": value, "fact_id": fact.id}
+        return out
+
     def storylines(self) -> dict:
         """Narratives the storyline agent has spotted so far: comebacks, late winners, braces, quick-fire goals."""
         stories = self.state.snapshot.get("storylines", [])
@@ -201,6 +222,7 @@ class StatsDesk:
                 self.score,
                 self.team_stats,
                 self.compare,
+                self.pass_quality,
                 self.player_stats,
                 self.momentum,
                 self.key_moments,

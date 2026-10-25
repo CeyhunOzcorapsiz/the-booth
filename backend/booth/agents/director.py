@@ -68,6 +68,9 @@ class Director:
             quality = event.detail.get("chance_quality", 0.0)
             score += 0.25 if event.outcome == "saved" and quality > 0.25 else 0.0
             score += 0.1 if event.detail.get("situation") == "penalty" else 0.0
+            score += 0.05 if event.detail.get("ball_speed_kmh", 0) >= 105 else 0.0
+        if event.type == "pass" and event.outcome == "complete" and event.detail.get("difficulty", 0) >= 80:
+            score += 0.25  # a killer pass is worth a line even though passes usually aren't
         if self.profile.follow and self.profile.follow in (event.player, event.target):
             score += 0.35
         return round(min(score, 1.0), 2)

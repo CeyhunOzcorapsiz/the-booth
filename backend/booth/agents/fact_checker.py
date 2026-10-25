@@ -20,7 +20,7 @@ from booth.sim.match import Match, MatchEvent
 from booth.state import FrozenState
 
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)")
-RULE_NUMBERS = {9.15, 10.0, 11.0, 45.0, 90.0}
+RULE_NUMBERS = {9.15, 10.0, 11.0, 45.0, 90.0, 100.0}  # rule distances, halves, ten men, 0-100 scales
 MAX_WORDS = {"pbp": 40, "color": 70, "stats": 40, "recap": 120, "explain": 60, "spatial": 30}
 
 REVIEW_INSTRUCTIONS = """You are the fact-checker of The Booth, an AI broadcast crew covering a SYNTHETIC football
@@ -46,7 +46,7 @@ def allowed_numbers(event: MatchEvent, state: FrozenState, sheet: FactSheet) -> 
     allowed = set(RULE_NUMBERS) | sheet.numbers()
     allowed.update(float(part) for part in re.findall(r"\d+", event.display_minute))
     allowed.update(float(v) for v in state.snapshot["score"].values())
-    for key in ("distance_m", "minutes"):
+    for key in ("distance_m", "minutes", "pass_distance_m", "difficulty", "ball_speed_kmh", "progressive_m"):
         if key in event.detail:
             allowed.add(float(event.detail[key]))
     for pid in (event.player, event.target):

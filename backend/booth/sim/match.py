@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 import random
+import zlib
 from dataclasses import asdict, dataclass, field
 
 PITCH_LENGTH = 105.0
@@ -538,8 +539,26 @@ class _Simulator:
                 self._emit(period, clock, "free_kick", team, taker, a, y, team)
                 return self._shot(period, clock + 2, team, taker, a, y, None, "free_kick")
             return clock, team, a, y
-        kind = "tackle" if self.rng.random() < 0.55 else "interception"
-        self._emit(period, clock, kind, opp, defender, opp_a, y, opp, target=holder)
+        kind = "tackle" if self.rng.random() < 0.25 else "interception"
+        if kind == "interception":
+            # The attempted pass that was cut out, so pass accuracy can be measured.
+            cut_a = _clamp(a + 6, 3, PITCH_LENGTH - 3)
+            self._emit(
+                period,
+                clock,
+                "pass",
+                team,
+                holder,
+                a,
+                y,
+                opp,
+                outcome="intercepted",
+                end_a=round(cut_a, 1),
+                end_y=round(y, 1),
+            )
+            self._emit(period, clock + 0.6, kind, opp, defender, PITCH_LENGTH - cut_a, y, opp, target=holder)
+        else:
+            self._emit(period, clock, kind, opp, defender, opp_a, y, opp, target=holder)
         return clock + self.rng.uniform(1, 3), opp, opp_a, y
 
     # --- match -----------------------------------------------------------------------------------------
@@ -585,7 +604,55 @@ class _Simulator:
                 period, whistle, "half_time" if period == 1 else "full_time", None, None, 52.5, 34.0, None
             )
         events = tuple(sorted(self.events, key=lambda e: (e.period, e.clock, int(e.id[1:]))))
+        for event in events:
+            _enrich(event)
         return Match(seed=self.seed, venue="Harbour Park (fictional)", teams=self.teams, events=events)
+
+
+def _jitter(event_id: str) -> float:
+    """Deterministic 0..1 noise per event, so enrichment never shifts the seeded random stream."""
+    return (zlib.crc32(event_id.encode()) % 10_000) / 10_000
+
+
+def pass_difficulty(distance: float, progressive: float, end_a: float, end_y: float, lateral: float) -> int:
+    """0-100 synthetic difficulty: longer, more forward passes into the final third or box are harder."""
+    score = distance * 1.6 + max(progressive, 0.0) * 0.8
+    if end_a > 70:
+        score += 12
+    if end_a > PITCH_LENGTH - 16.5 and 13.84 < end_y < 54.16:
+        score += 15
+    if lateral > 25:
+        score += 10  # switch of play
+    return int(_clamp(round(score), 5, 99))
+
+
+def _enrich(event: MatchEvent) -> None:
+    """Add pass-quality and speed metrics that a tracking provider would supply (synthetic estimates)."""
+    u = _jitter(event.id)
+    if event.type == "pass" and event.end_x is not None:
+        forward = 1 if event.team == "home" else -1
+        distance = math.hypot(event.end_x - event.x, event.end_y - event.y)
+        progressive = (event.end_x - event.x) * forward
+        end_a = event.end_x if event.team == "home" else PITCH_LENGTH - event.end_x
+        difficulty = pass_difficulty(distance, progressive, end_a, event.end_y, abs(event.end_y - event.y))
+        event.detail.update(
+            {
+                "pass_distance_m": round(distance, 1),
+                "progressive_m": round(progressive, 1),
+                "difficulty": difficulty,
+                "difficulty_label": "hard" if difficulty >= 65 else "medium" if difficulty >= 35 else "easy",
+                "ball_speed_kmh": int(_clamp(round(35 + distance * 1.5 + (u - 0.5) * 14), 25, 105)),
+            }
+        )
+    elif event.type == "shot":
+        body = event.detail.get("body_part")
+        if event.detail.get("situation") == "penalty":
+            speed = 95 + u * 20
+        elif body == "header":
+            speed = 45 + u * 30
+        else:
+            speed = 75 + (30 - min(event.detail.get("distance_m", 20), 30)) * 0.6 + u * 30
+        event.detail["ball_speed_kmh"] = int(round(speed))
 
 
 def generate_match(seed: int = 42) -> Match:
