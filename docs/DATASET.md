@@ -41,7 +41,7 @@ Squad info (`number, name, position, starter`), per-match counters (`passes, sho
 
 ### `storylines.csv`
 
-Narratives found by the storyline agent: `kind` is one of `comeback, turnaround, late_equalizer, late_winner, brace, hat_trick, quick_fire, against_the_run, down_to_ten`, with English and Turkish text.
+Narratives found by the storyline agent: `kind` is one of `comeback, turnaround, late_equalizer, late_winner, brace, hat_trick, quick_fire, against_the_run, down_to_ten`, with English and Turkish text (`text_en`, `text_tr`); the live state carries all 12 languages in `texts`.
 
 ## Loading into Microsoft Fabric
 

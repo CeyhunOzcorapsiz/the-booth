@@ -82,7 +82,7 @@ And the suggested features:
 | Narrative generation, milestones, recaps | Done: storyline agent, analyst, half and full-time recaps |
 | Explainability: control vs chaos, pressure changes, rhythm | Done: rhythm meter, momentum, storyline announcements when a team takes control or the game breaks up |
 | Data innovation: synthetic datasets | Done: `python -m booth.dataset` exports matches, events, players, storylines ([docs/DATASET.md](docs/DATASET.md)) |
-| Multi-language storytelling | English and Turkish templates; 12 languages with a model, translations refused if numbers change |
+| Multi-language storytelling | All 12 languages offline (one phrasebook per language in `booth/agents/phrases`, every line fact-checked); with a model, writers draft natively and translations are refused if numbers change |
 
 ## Architecture
 
@@ -128,7 +128,7 @@ uvicorn booth.api:app --port 8000
 
 Open http://localhost:8000 (the interface is in English or Turkish, switch with the EN/TR button), build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
 
-Without any configuration the crew runs on deterministic templates (English and Turkish). To run the model-backed agents, copy `.env.example` to `.env` and fill in one provider. See [docs/FREE_SETUP.md](docs/FREE_SETUP.md) for the free options.
+Without any configuration the crew runs on deterministic templates in all 12 languages. To run the model-backed agents, copy `.env.example` to `.env` and fill in one provider. See [docs/FREE_SETUP.md](docs/FREE_SETUP.md) for the free options.
 
 ### Static demo (GitHub Pages)
 
@@ -137,7 +137,7 @@ cd backend
 python -m booth.static_site --out ../_site
 ```
 
-Records the demo match for 12 viewer profiles with the offline crew and writes a server-less site; the `Static demo` workflow publishes it to GitHub Pages on every push to `main`. The static demo answers questions from the state already in the page and supports English and Turkish broadcasts; the full app (any seed, any profile, model-backed agents, 12 languages) needs the server.
+Records the demo match for 22 viewer profiles with the offline crew and writes a server-less site; the `Static demo` workflow publishes it to GitHub Pages on every push to `main`. The static demo answers questions from the state already in the page and has a broadcast in each of the 12 languages; the full app (any seed, any profile, model-backed agents) needs the server.
 
 ### Azure
 

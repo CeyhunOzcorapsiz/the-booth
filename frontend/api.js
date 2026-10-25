@@ -19,7 +19,7 @@ const profileKey = (p) => `${p.lang}-${p.style}-${p.accessible ? 1 : 0}-${p.club
 export async function nearestProfile(p) {
   const { profiles } = await staticManifest();
   const keys = new Set(profiles.map(profileKey));
-  const lang = ["en", "tr"].includes(p.lang) ? p.lang : "en";
+  const lang = profiles.some((x) => x.lang === p.lang) ? p.lang : "en";
   for (const candidate of [
     { ...p, lang },
     { ...p, lang, club: "" },

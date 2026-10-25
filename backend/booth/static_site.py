@@ -37,6 +37,7 @@ PROFILES = [
     ViewerProfile("tr", "tactical"),
     ViewerProfile("tr", "beginner", accessible=True),
     ViewerProfile("tr", "hype", club="home"),
+    *(ViewerProfile(lang, "hype") for lang in ("es", "de", "fr", "pt", "it", "nl", "ar", "ja", "hi", "sw")),
 ]
 
 

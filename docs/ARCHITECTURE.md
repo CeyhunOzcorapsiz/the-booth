@@ -55,7 +55,7 @@ flowchart TD
   - length limits per segment kind;
   - for analyst and recap lines, a model review for unsupported claims (intent, injuries, history).
 - **Localizer** (`agents/localizer.py`) translates the world feed. The translation is refused if its numbers differ from the source.
-- **Templates** (`agents/templates.py`) cover English and Turkish and are built only from the same data, so they pass the same checks.
+- **Templates** (`agents/templates.py`) cover all 12 languages from per-language phrasebooks (`agents/phrases/<lang>.py`, same keys and placeholders, Western digits so numbers stay traceable) and are built only from the same data, so they pass the same checks.
 
 ## Model runtime
 

@@ -198,7 +198,7 @@ function renderStoryline(state) {
     return;
   }
   const label = Object.assign(document.createElement("b"), { textContent: `${t("STORYLINE")} · ${story.minute}` });
-  box.replaceChildren(label, document.createTextNode(profile?.lang === "tr" ? story.tr : story.en));
+  box.replaceChildren(label, document.createTextNode(story.texts?.[profile?.lang] || story.en));
   box.hidden = false;
 }
 

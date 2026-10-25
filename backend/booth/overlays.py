@@ -7,6 +7,7 @@ state, so overlays are as verifiable as the commentary. See docs/OVERLAYS.md for
 
 from __future__ import annotations
 
+from booth.agents.phrases import LANGS, phrases
 from booth.sim.match import Match, MatchEvent
 from booth.sim.tracking import tracking_for
 from booth.state import MatchState
@@ -18,52 +19,7 @@ KILLER_PASS = 80
 LONG_BALL_M = 45
 SPRINT_TAG_KMH = 30
 
-LABELS = {
-    "en": {
-        "goal": "GOAL",
-        "yellow_card": "YELLOW CARD",
-        "red_card": "RED CARD",
-        "substitution": "SUBSTITUTION",
-        "penalty_awarded": "PENALTY",
-        "assist": "assist",
-        "on": "on",
-        "off": "off",
-        "half_time": "HALF TIME",
-        "full_time": "FULL TIME",
-        "stats": "MATCH STATS",
-        "killer": "killer pass",
-        "long": "long ball",
-        "possession": "Possession %",
-        "shots": "Shots",
-        "on_target": "On target",
-        "pass_acc": "Pass accuracy %",
-        "storyline": "STORYLINE",
-        "distance": "Distance (km)",
-        "sprint": "sprint",
-    },
-    "tr": {
-        "goal": "GOL",
-        "yellow_card": "SARI KART",
-        "red_card": "KIRMIZI KART",
-        "substitution": "OYUNCU DEĞİŞİKLİĞİ",
-        "penalty_awarded": "PENALTI",
-        "assist": "asist",
-        "on": "giren",
-        "off": "çıkan",
-        "half_time": "İLK YARI SONU",
-        "full_time": "MAÇ SONU",
-        "stats": "MAÇ İSTATİSTİKLERİ",
-        "killer": "kilit pas",
-        "long": "uzun top",
-        "possession": "Topa sahip olma %",
-        "shots": "Şut",
-        "on_target": "İsabetli şut",
-        "pass_acc": "Pas isabeti %",
-        "storyline": "HİKÂYE",
-        "distance": "Koşu mesafesi (km)",
-        "sprint": "sprint",
-    },
-}
+LABELS = {lang: phrases(lang)["overlay"] for lang in LANGS}
 
 
 class OverlayBuilder:

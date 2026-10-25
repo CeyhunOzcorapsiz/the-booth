@@ -12,6 +12,7 @@ from collections import deque
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
+from booth.agents.phrases import LANGS, phrases, plural
 from booth.sim.match import MatchEvent
 
 if TYPE_CHECKING:
@@ -77,15 +78,22 @@ class Storyline:
     minute: str
     team: str | None
     player: str | None
-    en: str
-    tr: str
+    texts: dict[str, str]
     numbers: tuple[float, ...]
 
+    @property
+    def en(self) -> str:
+        return self.texts["en"]
+
+    @property
+    def tr(self) -> str:
+        return self.texts["tr"]
+
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {**asdict(self), "en": self.en, "tr": self.tr}
 
     def text(self, lang: str) -> str:
-        return self.tr if lang == "tr" else self.en
+        return self.texts.get(lang, self.en)
 
 
 class StorylineTracker:
@@ -108,17 +116,7 @@ class StorylineTracker:
             found += self._goal(event, state)
         elif event.type == "red_card" and event.team:
             name = state.match.teams[event.team].name
-            found.append(
-                self._story(
-                    event,
-                    "down_to_ten",
-                    event.team,
-                    None,
-                    f"{name} are down to 10 for the rest of the match.",
-                    f"{name} maçın kalanında 10 kişi.",
-                    (10,),
-                )
-            )
+            found.append(self._story(event, "down_to_ten", event.team, None, {"name": name}, (10,)))
         for team in ("home", "away"):
             other = "away" if team == "home" else "home"
             self._max_deficit[team] = max(self._max_deficit[team], state.score[other] - state.score[team])
@@ -143,8 +141,7 @@ class StorylineTracker:
                     "comeback",
                     team,
                     None,
-                    f"{name} were {deficit} goals down and have fought back to {score}.",
-                    f"{name} {deficit} gol gerideydi, skor şimdi {score}.",
+                    {"name": name, "deficit": deficit, "score": score},
                     (deficit, h, a),
                 )
             )
@@ -155,8 +152,7 @@ class StorylineTracker:
                     "turnaround",
                     team,
                     None,
-                    f"{name} were behind earlier and now lead {score}.",
-                    f"{name} geriye düşmüştü, şimdi {score} önde.",
+                    {"name": name, "score": score},
                     (h, a),
                 )
             )
@@ -169,8 +165,7 @@ class StorylineTracker:
                         "late_equalizer",
                         team,
                         None,
-                        f"Late drama at {event.display_minute}: {name} level it at {score}.",
-                        f"Son dakika dramı ({event.display_minute}): {name} skoru {score} yaptı.",
+                        {"name": name, "score": score, "minute": event.display_minute},
                         (h, a, event.minute),
                     )
                 )
@@ -181,8 +176,7 @@ class StorylineTracker:
                         "late_winner",
                         team,
                         None,
-                        f"A late winner? {name} lead {score} at {event.display_minute}.",
-                        f"Galibiyet golü mü? ({event.display_minute}) {name} {score} öne geçti.",
+                        {"name": name, "score": score, "minute": event.display_minute},
                         (h, a, event.minute),
                     )
                 )
@@ -191,17 +185,8 @@ class StorylineTracker:
         goals = state.players[event.player]["goals"] if event.player else 0
         if player and goals >= 2:
             kind = "hat_trick" if goals == 3 else "brace" if goals == 2 else "haul"
-            en = (
-                f"Hat-trick for {player.short_name}!"
-                if goals == 3
-                else f"That's {goals} goals today for {player.short_name}."
-            )
-            tr = (
-                f"{player.short_name} hat-trick yaptı!"
-                if goals == 3
-                else f"{player.short_name} bugün {goals} gol attı."
-            )
-            stories.append(self._story(event, kind, team, event.player, en, tr, (goals,)))
+            params = {"player": player.short_name, "goals": goals}
+            stories.append(self._story(event, kind, team, event.player, params, (goals,)))
 
         previous = self._last_goal.get(team)
         if previous and previous[0] == event.period and event.clock - previous[1] <= QUICK_FIRE_S:
@@ -212,8 +197,7 @@ class StorylineTracker:
                     "quick_fire",
                     team,
                     None,
-                    f"{name} have scored twice in {minutes} minutes.",
-                    f"{name} {minutes} dakikada iki gol buldu.",
+                    {"name": name, "minutes": minutes},
                     (minutes,),
                 )
             )
@@ -229,8 +213,7 @@ class StorylineTracker:
                     "against_the_run",
                     team,
                     None,
-                    f"{name} score despite having only {possession}% of the ball.",
-                    f"{name}, topa yalnızca %{possession} sahipken gol buldu.",
+                    {"name": name, "possession": possession},
                     (possession,),
                 )
             )
@@ -252,10 +235,7 @@ class StorylineTracker:
                 "control",
                 r["controller"],
                 None,
-                f"{name} have taken control: {r['pass_share_pct']}% of the passes and only "
-                f"{r['changes_5min']} change{'' if r['changes_5min'] == 1 else 's'} of possession in the last five minutes.",
-                f"{name} oyunun kontrolünü aldı: son beş dakikada pasların %{r['pass_share_pct']}'i onlarda, "
-                f"top yalnızca {r['changes_5min']} kez el değiştirdi.",
+                {"name": name, "share": r["pass_share_pct"], "changes": r["changes_5min"]},
                 (r["pass_share_pct"], r["changes_5min"]),
             )
         elif r["label"] == "chaotic":
@@ -264,8 +244,7 @@ class StorylineTracker:
                 "chaos",
                 None,
                 None,
-                f"The game has broken up: {r['changes_5min']} changes of possession in the last five minutes.",
-                f"Oyun koptu: son beş dakikada top {r['changes_5min']} kez el değiştirdi.",
+                {"changes": r["changes_5min"]},
                 (r["changes_5min"],),
             )
         else:
@@ -278,8 +257,9 @@ class StorylineTracker:
 
     @staticmethod
     def _story(
-        event: MatchEvent, kind: str, team: str | None, player: str | None, en: str, tr: str, numbers: tuple
+        event: MatchEvent, kind: str, team: str | None, player: str | None, params: dict, numbers: tuple
     ) -> Storyline:
+        values = {**params, "s_changes": plural(params.get("changes", 2))}
         return Storyline(
             id=f"S-{event.id}-{kind}",
             kind=kind,
@@ -287,7 +267,6 @@ class StorylineTracker:
             minute=event.display_minute,
             team=team,
             player=player,
-            en=en,
-            tr=tr,
+            texts={lang: phrases(lang)["stories"][kind].format(**values) for lang in LANGS},
             numbers=tuple(float(n) for n in numbers),
         )
