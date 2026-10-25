@@ -2,6 +2,7 @@ import { Pitch } from "./pitch.js";
 import { Voice } from "./voice.js";
 import { initCompare } from "./compare.js";
 import { segmentCard, segmentFoot } from "./render.js";
+import { applyStatic, setUiLang, t, uiLang } from "./i18n.js";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { home: "#c5f665", away: "#ed9e83" };
@@ -34,6 +35,9 @@ let currentPeriod = 1;
 let profile = null;
 let traceSteps = 0;
 let llm = { provider: "offline" };
+let liveLabel = "OFF AIR";
+let lastState = null;
+const STYLE_NAMES = { hype: "Hype", calm: "Calm", tactical: "Tactical", beginner: "New to football" };
 
 // ---------- setup ----------
 async function loadOptions() {
@@ -43,9 +47,10 @@ async function loadOptions() {
   voice.useNeural(Boolean(health.speech?.enabled));
   for (const [code, name] of Object.entries(options.languages)) {
     const offline = options.offline_languages.includes(code);
-    const label = offline || llm.configured ? name : `${name} (needs a model)`;
+    const label = offline || llm.configured ? name : `${name} ${t("(needs a model)")}`;
     $("lang").append(new Option(label, code));
   }
+  $("lang").value = uiLang() === "tr" ? "tr" : "en"; // a Turkish interface defaults to a Turkish broadcast
   setProvider(llm);
 }
 
@@ -53,7 +58,7 @@ async function loadMatch(seed) {
   meta = await fetch(`/api/match?seed=${seed}`).then((r) => r.json());
   players = {};
   const follow = $("follow");
-  follow.replaceChildren(new Option("Nobody in particular", ""));
+  follow.replaceChildren(new Option(t("Nobody in particular"), ""));
   for (const team of Object.values(meta.teams)) {
     const group = document.createElement("optgroup");
     group.label = team.name;
@@ -72,9 +77,9 @@ async function loadMatch(seed) {
 function setProvider(status) {
   const badge = $("providerBadge");
   const on = status.configured && !status.breaker_open;
-  badge.textContent = on ? `${status.provider.toUpperCase()} · ${status.model}` : "OFFLINE · TEMPLATES";
+  badge.textContent = on ? `${status.provider.toUpperCase()} · ${status.model}` : t("OFFLINE · TEMPLATES");
   badge.classList.toggle("ai", on);
-  badge.title = on ? "Agents call a live model" : "No model configured: agents use deterministic templates";
+  badge.title = t(on ? "Agents call a live model" : "No model configured: agents use deterministic templates");
 }
 
 $("seed").addEventListener("change", () => loadMatch(Number($("seed").value) || 0));
@@ -95,7 +100,7 @@ $("voiceToggle").addEventListener("click", () => setVoice(!voice.enabled));
 function setVoice(on) {
   voice.setEnabled(on);
   $("voiceToggle").setAttribute("aria-pressed", String(voice.enabled));
-  $("voiceToggle").textContent = voice.enabled ? "🔊 Voice on" : "🔈 Voice off";
+  $("voiceToggle").textContent = t(voice.enabled ? "🔊 Voice on" : "🔈 Voice off");
   // When the booth reads aloud, don't make screen readers announce the same lines a second time.
   $("feed").setAttribute("aria-live", voice.enabled ? "off" : "polite");
 }
@@ -119,7 +124,7 @@ function goLive() {
   source.onerror = () => {
     if (source.readyState !== EventSource.CLOSED) return;
     setLive(false, "OFF AIR");
-    if (!onAir) addNote("Couldn't start the broadcast. The booth may be busy (too many live broadcasts); try again in a minute.");
+    if (!onAir) addNote(t("Couldn't start the broadcast. The booth may be busy (too many live broadcasts); try again in a minute."));
   };
   setLive(true, "LIVE");
 }
@@ -136,15 +141,16 @@ function resetView() {
 }
 
 function setLive(on, label) {
+  liveLabel = label;
   $("live").classList.toggle("on", on);
-  $("liveLabel").textContent = label;
+  $("liveLabel").textContent = t(label);
 }
 
 function onHello(msg) {
   setProvider(msg.llm);
   const p = msg.profile;
-  const chips = [p.lang.toUpperCase(), p.style, p.accessible ? "audio-first" : null,
-    p.follow ? `following ${players[p.follow]?.name ?? p.follow}` : null, `seed ${msg.match.seed}`].filter(Boolean);
+  const chips = [p.lang.toUpperCase(), t(STYLE_NAMES[p.style] ?? p.style), p.accessible ? t("audio-first") : null,
+    p.follow ? `${t("following")} ${players[p.follow]?.name ?? p.follow}` : null, `seed ${msg.match.seed}`].filter(Boolean);
   $("profileChips").replaceChildren(...chips.map((c) => Object.assign(document.createElement("span"),
     { className: "chip", textContent: c })));
 }
@@ -154,23 +160,31 @@ function onEvent({ event, state }) {
   currentPeriod = event.period;
   pitch.show(event, players, state);
   renderState(state);
-  if (TOAST[event.type]) toast(TOAST[event.type] + (event.type === "shot" ? ` · ${event.outcome.replace("_", " ")}` : ""),
+  if (TOAST[event.type]) toast(t(TOAST[event.type]) + (event.type === "shot" ? ` · ${t(event.outcome.replace("_", " "))}` : ""),
     BIG.has(event.type));
 }
 
+// Same order as the server's STORY_PRIORITY: when one moment starts several storylines, show the biggest.
+const STORY_PRIORITY = ["comeback", "late_winner", "late_equalizer", "turnaround", "hat_trick", "down_to_ten",
+  "quick_fire", "brace", "against_the_run", "haul"];
+const rank = (story) => (STORY_PRIORITY.indexOf(story.kind) + STORY_PRIORITY.length + 1) % (STORY_PRIORITY.length + 1);
+
 function renderStoryline(state) {
-  const story = state.storylines?.at(-1);
+  const latest = state.storylines?.at(-1);
+  const story = latest && state.storylines.filter((s) => s.event_id === latest.event_id)
+    .sort((a, b) => rank(a) - rank(b))[0];
   const box = $("storyline");
   if (!story) {
     box.hidden = true;
     return;
   }
-  const label = Object.assign(document.createElement("b"), { textContent: `STORYLINE · ${story.minute}` });
+  const label = Object.assign(document.createElement("b"), { textContent: `${t("STORYLINE")} · ${story.minute}` });
   box.replaceChildren(label, document.createTextNode(profile?.lang === "tr" ? story.tr : story.en));
   box.hidden = false;
 }
 
 function renderState(state) {
+  lastState = state;
   renderStoryline(state);
   $("homeScore").textContent = state.score.home;
   $("awayScore").textContent = state.score.away;
@@ -183,10 +197,10 @@ function renderState(state) {
   bar.className = m < 0 ? "away" : "";
   bar.style.left = m < 0 ? `${50 + m * 50}%` : "50%";
   bar.style.width = `${Math.abs(m) * 50}%`;
-  $("momentumLabel").textContent = Math.abs(m) < 0.15 ? "even" : m > 0 ? meta.teams.home.short : meta.teams.away.short;
+  $("momentumLabel").textContent = Math.abs(m) < 0.15 ? t("even") : m > 0 ? meta.teams.home.short : meta.teams.away.short;
   $("statsBody").replaceChildren(...STAT_ROWS.map(([key, label]) => {
     const row = document.createElement("tr");
-    for (const text of [state.teams.home[key], label, state.teams.away[key]]) {
+    for (const text of [state.teams.home[key], t(label), state.teams.away[key]]) {
       row.append(Object.assign(document.createElement("td"), { textContent: text }));
     }
     return row;
@@ -204,12 +218,12 @@ function renderState(state) {
 
 let toastTimer;
 function toast(text, big) {
-  const t = $("eventToast");
-  t.textContent = text;
-  t.className = `event-toast${big ? " big" : ""}`;
-  t.hidden = false;
+  const box = $("eventToast");
+  box.textContent = text;
+  box.className = `event-toast${big ? " big" : ""}`;
+  box.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, big ? 2600 : 1100);
+  toastTimer = setTimeout(() => { box.hidden = true; }, big ? 2600 : 1100);
 }
 
 function onSegment(seg) {
@@ -231,34 +245,44 @@ function renderCrew() {
     card.className = "agent";
     card.id = `agent-${id}`;
     card.innerHTML = `<b><i></i><span></span><span class="count">0</span></b><small></small>`;
-    card.querySelector("span").textContent = name;
-    card.querySelector("small").textContent = role;
+    card.querySelector("span").textContent = t(name);
+    card.querySelector("small").textContent = t(role);
     card.dataset.count = "0";
     return card;
   }));
-  $("traceCount").textContent = "0 steps";
+  $("traceCount").textContent = `0 ${t("steps")}`;
+}
+
+function relabelCrew() {
+  for (const [id, name, role] of AGENTS) {
+    const card = $(`agent-${id}`);
+    if (!card) continue;
+    card.querySelector("span").textContent = t(name);
+    if (card.dataset.count === "0") card.querySelector("small").textContent = t(role);
+  }
+  $("traceCount").textContent = `${traceSteps} ${t("steps")}`;
 }
 
 const STATE_CLASS = { start: "active", done: "ok", approved: "ok", planned: "ok", cache: "ok", template: "ok",
   rejected: "bad", fallback: "fallback", dropped: "fallback" };
 
-function onTrace(t) {
+function onTrace(step) {
   traceSteps += 1;
-  $("traceCount").textContent = `${traceSteps} steps`;
-  const card = $(`agent-${t.agent}`);
+  $("traceCount").textContent = `${traceSteps} ${t("steps")}`;
+  const card = $(`agent-${step.agent}`);
   if (card) {
-    card.className = `agent ${STATE_CLASS[t.status] ?? ""}`;
-    card.querySelector("small").textContent = t.detail;
-    if (t.status !== "start") {
+    card.className = `agent ${STATE_CLASS[step.status] ?? ""}`;
+    card.querySelector("small").textContent = step.detail;
+    if (step.status !== "start") {
       card.dataset.count = String(Number(card.dataset.count) + 1);
       card.querySelector(".count").textContent = card.dataset.count;
     }
   }
   const li = document.createElement("li");
-  for (const [cls, text] of [["job", t.job], ["who", t.agent], [`st st-${t.status}`, t.status + (t.ms ? ` ${t.ms}ms` : "")], ["what", t.detail]]) {
+  for (const [cls, text] of [["job", step.job], ["who", step.agent], [`st st-${step.status}`, step.status + (step.ms ? ` ${step.ms}ms` : "")], ["what", step.detail]]) {
     li.append(Object.assign(document.createElement("span"), { className: cls, textContent: text }));
   }
-  li.title = t.detail;
+  li.title = step.detail;
   $("trace").prepend(li);
   while ($("trace").childElementCount > 150) $("trace").lastElementChild.remove();
 }
@@ -269,7 +293,7 @@ $("askForm").addEventListener("submit", async (e) => {
   const question = $("question").value.trim();
   if (!question) return;
   const answer = $("answer");
-  answer.textContent = "Checking the stats desk…";
+  answer.textContent = t("Checking the stats desk…");
   try {
     const res = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seed: profile?.seed ?? Number($("seed").value) ?? 42, minute: currentMinute, period: currentPeriod,
@@ -280,11 +304,24 @@ $("askForm").addEventListener("submit", async (e) => {
     answer.replaceChildren(text, segmentFoot({ ...data, verified: true, notes: [] }, llm.model));
     voice.say(data.text, profile?.lang ?? "en", true);
   } catch (err) {
-    answer.textContent = `Couldn't reach the booth (${err.message}).`;
+    answer.textContent = `${t("Couldn't reach the booth")} (${err.message}).`;
   }
 });
 
+// ---------- interface language ----------
+$("uiLang").addEventListener("click", () => setUiLang(uiLang() === "tr" ? "en" : "tr"));
+window.addEventListener("uilangchange", () => {
+  setVoice(voice.enabled);
+  setLive($("live").classList.contains("on"), liveLabel);
+  setProvider(llm);
+  relabelCrew();
+  if (lastState) renderState(lastState);
+  const follow = $("follow");
+  if (follow.options.length) follow.options[0].textContent = t("Nobody in particular");
+});
+
 // ---------- boot ----------
+applyStatic();
 renderCrew();
 await loadOptions();
 await loadMatch(Number($("seed").value) || 0);

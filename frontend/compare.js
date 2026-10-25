@@ -1,4 +1,5 @@
 // "Same moment, different shows": one event, several viewer profiles, side by side.
+import { translate, t } from "./i18n.js";
 import { make, segmentCard } from "./render.js";
 
 const $ = (id) => document.getElementById(id);
@@ -21,10 +22,12 @@ export function initCompare({ voice, seed, model, languages }) {
 
   const columns = DEFAULTS.map((preset, i) => buildColumn(preset, i, languages()));
   $("compareColumns").replaceChildren(...columns.map((c) => c.root));
+  translate($("compareColumns"));
   $("compareRun").addEventListener("click", run);
   $("comparePlay").addEventListener("click", playAll);
 
   let loadedSeed = null;
+  let lastRun = null;
   let preferred = null;
   async function loadMoments() {
     if (loadedSeed === seed()) return;
@@ -51,9 +54,10 @@ export function initCompare({ voice, seed, model, languages }) {
       const data = await res.json();
       const s = data.state;
       $("compareScore").textContent = `${s.minute} · ${s.score.home}–${s.score.away}`;
+      lastRun = data;
       data.broadcasts.forEach((b, i) => columns[i].show(b, model()));
     } catch (err) {
-      $("compareScore").textContent = `Couldn't run the crew (${err.message})`;
+      $("compareScore").textContent = `${t("Couldn't run the crew")} (${err.message})`;
     } finally {
       $("compareRun").disabled = false;
     }
@@ -63,6 +67,10 @@ export function initCompare({ voice, seed, model, languages }) {
     voice.setEnabled(true);
     for (const c of columns) for (const seg of c.segments) voice.say(seg.text, seg.lang);
   }
+
+  window.addEventListener("uilangchange", () => {
+    if (lastRun) lastRun.broadcasts.forEach((b, i) => columns[i].show(b, model()));
+  });
 
   return {
     open(eventId) {
@@ -103,7 +111,7 @@ function buildColumn(preset, index, languages) {
       column.segments = broadcast.segments;
       feed.replaceChildren(...(broadcast.segments.length
         ? broadcast.segments.map((s) => segmentCard(s, model))
-        : [make("li", "empty", "The director kept this viewer's booth quiet here.")]));
+        : [make("li", "empty", t("The director kept this viewer's booth quiet here."))]));
       trace.replaceChildren(...broadcast.trace.map((t) => {
         const li = make("li");
         li.append(make("span", "who", t.agent), make("span", `st st-${t.status}`, t.status), make("span", "what", t.detail));

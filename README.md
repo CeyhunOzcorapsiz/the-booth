@@ -95,7 +95,7 @@ pip install -e ".[dev]"
 uvicorn booth.api:app --port 8000
 ```
 
-Open http://localhost:8000, build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
+Open http://localhost:8000 (the interface is in English or Turkish, switch with the EN/TR button), build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
 
 Without any configuration the crew runs on deterministic templates (English and Turkish). To run the model-backed agents, copy `.env.example` to `.env` and fill in one provider. See [docs/FREE_SETUP.md](docs/FREE_SETUP.md) for the free options.
 
@@ -141,7 +141,9 @@ Replays a whole match for several profiles and reports the fact-check pass rate 
 
 ```bash
 cd backend
-pytest
+pytest                                   # unit and API tests
+pip install -e ".[e2e]" && python -m playwright install chromium
+pytest tests/e2e                         # the real UI in a browser (or BOOTH_E2E_CHANNEL=msedge)
 ruff check booth tests
 ```
 

@@ -16,6 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27", "ruff>=0.6", "mcp>=2.3"]
 mcp = ["mcp>=2.3"]
+e2e = ["playwright>=1.48"]
 azure = ["azure-monitor-opentelemetry>=1.6"]
 
 [build-system]
@@ -28,6 +29,7 @@ include = ["booth*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["e2e: browser tests (need Playwright and a browser)"]
 
 [tool.ruff]
 line-length = 110
