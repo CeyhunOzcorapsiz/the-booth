@@ -204,7 +204,7 @@ async def test_new_storyline_reaches_the_analyst_and_trace():
     broadcast = result["broadcasts"][0]
     color = next(s for s in broadcast["segments"] if s["kind"] == "color")
     assert "late winner" in color["text"].lower()
-    assert any(e["id"].endswith("story-late_winner") for e in color["evidence"])
+    assert any("story-late_winner" in e["id"] for e in color["evidence"])
     assert any(t["agent"] == "storyline" for t in broadcast["trace"])
 
 
@@ -284,3 +284,14 @@ async def test_favorite_club_changes_the_call():
     assert "Yes!" not in neutral[0].text and "Bad news" not in neutral[0].text
     with pytest.raises(ValueError):
         ViewerProfile(club="both")
+
+
+@pytest.mark.parametrize("seed", range(1, 9))
+async def test_every_template_line_passes_the_fact_checker_across_matches(seed):
+    """Regression: recurring storylines (e.g. two 'control' spells) once reused stale numbers."""
+    profiles = [ViewerProfile("en", "hype"), ViewerProfile("tr", "beginner", accessible=True, club="away")]
+    for profile in profiles:
+        show = Broadcast(generate_match(seed), profile, Crew(None), speed=1e9, max_gap_s=0)
+        async for message in show.stream():
+            if message["type"] == "segment":
+                assert message["verified"], message

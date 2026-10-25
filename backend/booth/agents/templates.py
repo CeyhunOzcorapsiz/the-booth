@@ -281,13 +281,13 @@ def color(event: MatchEvent, match: Match, sheet: FactSheet, lang: str, storylin
             if tr
             else f"That's {on_target} effort{'s' if on_target != '1' else ''} on target for {name}."
         )
-    if momentum and len(parts) < 2:
+    if momentum and len(parts) < 2 and not stories:
         if tr:
             mood = momentum.replace(" on top", " üstün").replace("evenly balanced", "oyun dengeli")
             parts.append(f"Son beş dakikada {mood}.")
         else:
             parts.append(f"Over the last five minutes: {momentum}.")
-    if poss and len(parts) < 2:
+    if poss and len(parts) < 2 and not stories:
         parts.append(
             f"{name} topa %{poss} oranında sahip." if tr else f"{name} have had {poss}% of the ball."
         )
@@ -323,6 +323,8 @@ STORY_PRIORITY = (
     "quick_fire",
     "brace",
     "against_the_run",
+    "control",
+    "chaos",
     "haul",
 )
 

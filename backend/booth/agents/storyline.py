@@ -8,6 +8,7 @@ the numbers behind it, so writers can use it and the fact-checker can verify it.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,53 @@ if TYPE_CHECKING:
 LATE_MINUTE = 85
 QUICK_FIRE_S = 6 * 60
 AGAINST_THE_RUN_PCT = 40
+RHYTHM_WINDOW_S = 300
+RHYTHM_MIN_GAP_S = 10 * 60
+CONTROL_PASS_SHARE = 62
+
+
+class RhythmMeter:
+    """Control vs chaos over the last five minutes, from possession changes and who is passing.
+
+    Calibrated on the simulator: a typical five minutes has about 7 changes of possession; 5 or fewer is a
+    controlled spell, 10 or more is end-to-end. Announcements are at least ten minutes apart.
+    """
+
+    def __init__(self):
+        self._window: deque = deque()
+        self._possession: str | None = None
+
+    def observe(self, event: MatchEvent) -> None:
+        changed = bool(self._possession and event.possession and event.possession != self._possession)
+        if event.possession:
+            self._possession = event.possession
+        passer = event.team if event.type == "pass" else None
+        self._window.append((event.period, event.clock, changed, passer))
+        while self._window and (
+            self._window[0][0] != event.period or event.clock - self._window[0][1] > RHYTHM_WINDOW_S
+        ):
+            self._window.popleft()
+
+    def snapshot(self) -> dict:
+        changes = sum(1 for _, _, changed, _ in self._window if changed)
+        passes = {"home": 0, "away": 0}
+        for *_, passer in self._window:
+            if passer:
+                passes[passer] += 1
+        total = passes["home"] + passes["away"]
+        chaos = int(max(0, min(100, round((changes - 4) / 8 * 100))))
+        leader = max(passes, key=passes.get) if total else None
+        share = round(100 * passes[leader] / total) if leader else 0
+        label = "chaotic" if chaos >= 65 else "controlled" if chaos <= 12 else "open"
+        controller = leader if label == "controlled" and share >= CONTROL_PASS_SHARE else None
+        return {
+            "chaos": chaos,
+            "label": label,
+            "changes_5min": changes,
+            "passes_per_min": round(total / (RHYTHM_WINDOW_S / 60), 1),
+            "pass_share_pct": share,
+            "controller": controller,
+        }
 
 
 @dataclass(frozen=True)
@@ -45,12 +93,17 @@ class StorylineTracker:
 
     def __init__(self):
         self.storylines: list[Storyline] = []
+        self.rhythm = RhythmMeter()
+        self._rhythm_announced: tuple[str, str | None] | None = None
+        self._rhythm_at = -1e9
         self._max_deficit = {"home": 0, "away": 0}
         self._last_goal: dict[str, tuple[int, float]] = {}
 
     def observe(self, event: MatchEvent, state: MatchState) -> list[Storyline]:
         """Update after ``state`` has applied ``event``; returns storylines that started with this event."""
         found: list[Storyline] = []
+        self.rhythm.observe(event)
+        found += self._rhythm(event, state)
         if event.type == "goal" and event.team:
             found += self._goal(event, state)
         elif event.type == "red_card" and event.team:
@@ -182,6 +235,43 @@ class StorylineTracker:
                 )
             )
         return stories
+
+    def _rhythm(self, event: MatchEvent, state: MatchState) -> list[Storyline]:
+        """Announce a change in the rhythm of the game (at most every eight minutes, after the opening spell)."""
+        if event.minute < 12:
+            return []
+        r = self.rhythm.snapshot()
+        key = (r["label"], r["controller"])
+        absolute = event.clock + (10_000 if event.period == 2 else 0)
+        if key == self._rhythm_announced or absolute - self._rhythm_at < RHYTHM_MIN_GAP_S:
+            return []
+        if r["label"] == "controlled" and r["controller"]:
+            name = state.match.teams[r["controller"]].name
+            story = self._story(
+                event,
+                "control",
+                r["controller"],
+                None,
+                f"{name} have taken control: {r['pass_share_pct']}% of the passes and only "
+                f"{r['changes_5min']} change{'' if r['changes_5min'] == 1 else 's'} of possession in the last five minutes.",
+                f"{name} oyunun kontrolünü aldı: son beş dakikada pasların %{r['pass_share_pct']}'i onlarda, "
+                f"top yalnızca {r['changes_5min']} kez el değiştirdi.",
+                (r["pass_share_pct"], r["changes_5min"]),
+            )
+        elif r["label"] == "chaotic":
+            story = self._story(
+                event,
+                "chaos",
+                None,
+                None,
+                f"The game has broken up: {r['changes_5min']} changes of possession in the last five minutes.",
+                f"Oyun koptu: son beş dakikada top {r['changes_5min']} kez el değiştirdi.",
+                (r["changes_5min"],),
+            )
+        else:
+            return []
+        self._rhythm_announced, self._rhythm_at = key, absolute
+        return [story]
 
     def _has(self, team: str, kind: str) -> bool:
         return any(s.team == team and s.kind == kind for s in self.storylines)

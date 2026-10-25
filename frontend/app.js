@@ -181,7 +181,7 @@ function onEvent({ event, state }) {
 
 // Same order as the server's STORY_PRIORITY: when one moment starts several storylines, show the biggest.
 const STORY_PRIORITY = ["comeback", "late_winner", "late_equalizer", "turnaround", "hat_trick", "down_to_ten",
-  "quick_fire", "brace", "against_the_run", "haul"];
+  "quick_fire", "brace", "against_the_run", "control", "chaos", "haul"];
 const rank = (story) => (STORY_PRIORITY.indexOf(story.kind) + STORY_PRIORITY.length + 1) % (STORY_PRIORITY.length + 1);
 
 function renderStoryline(state) {
@@ -213,6 +213,13 @@ function renderState(state) {
   bar.style.left = m < 0 ? `${50 + m * 50}%` : "50%";
   bar.style.width = `${Math.abs(m) * 50}%`;
   $("momentumLabel").textContent = Math.abs(m) < 0.15 ? t("even") : m > 0 ? meta.teams.home.short : meta.teams.away.short;
+  const rhythm = state.rhythm;
+  if (rhythm) {
+    $("chaos").style.left = `${rhythm.chaos}%`;
+    const who = rhythm.controller ? ` · ${meta.teams[rhythm.controller].short}` : "";
+    $("chaosLabel").textContent = `${t(rhythm.label)}${who}`;
+    $("chaosLabel").parentElement.title = `${rhythm.changes_5min} ${t("changes of possession in 5 min")}`;
+  }
   $("statsBody").replaceChildren(...STAT_ROWS.map(([key, label]) => {
     const row = document.createElement("tr");
     for (const text of [state.teams.home[key], t(label), state.teams.away[key]]) {

@@ -241,5 +241,6 @@ class MatchState:
             "teams": {team: self.team_line(team) for team in ("home", "away")},
             "key_moments": self.key_moments[-12:],
             "storylines": [s.to_dict() for s in self.story.storylines[-8:]],
+            "rhythm": self.story.rhythm.snapshot(),
             "on_pitch": {team: list(ids) for team, ids in self.on_pitch.items()},
         }

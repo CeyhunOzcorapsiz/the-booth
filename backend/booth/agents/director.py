@@ -96,7 +96,9 @@ class Director:
                     kinds.append("pbp")
         new_story = bool(state.new_storylines)
         if new_story:
-            importance = max(importance, 0.9)  # the storyline agent flagged a narrative worth airing
+            # the storyline agent flagged a narrative worth airing; rhythm shifts are softer than goals
+            rhythm_only = all(s.kind in ("control", "chaos") for s in state.new_storylines)
+            importance = max(importance, 0.75 if rhythm_only else 0.9)
         if (importance >= COLOR_THRESHOLD[style] or new_story) and event.type not in (
             "half_time",
             "full_time",

@@ -198,6 +198,22 @@ class StatsDesk:
             out[stat] = {"value": value, "fact_id": fact.id}
         return out
 
+    def rhythm(self) -> dict:
+        """Control vs chaos over the last five minutes: changes of possession, tempo and who is dictating play."""
+        r = self.state.snapshot["rhythm"]
+        controller = self._team_name(r["controller"]) if r["controller"] else None
+        fact = self.sheet.add(
+            Fact(
+                "F-rhythm",
+                "Rhythm (last 5 min)",
+                f"{r['label']}, chaos {r['chaos']}/100, {r['changes_5min']} changes of possession, "
+                f"{r['passes_per_min']} passes a minute"
+                + (f", {controller} in control" if controller else ""),
+                (r["chaos"], r["changes_5min"], r["passes_per_min"], r["pass_share_pct"]),
+            )
+        )
+        return {"fact_id": fact.id, **r, "controller": controller}
+
     def storylines(self) -> dict:
         """Narratives the storyline agent has spotted so far: comebacks, late winners, braces, quick-fire goals."""
         stories = self.state.snapshot.get("storylines", [])
@@ -205,7 +221,12 @@ class StatsDesk:
         for story in stories:
             owner = story["player"] or story["team"] or "match"
             fact = self.sheet.add(
-                Fact(f"F-{owner}-story-{story['kind']}", "Storyline", story["en"], tuple(story["numbers"]))
+                Fact(
+                    f"F-{owner}-story-{story['kind']}-{story['event_id']}",  # unique: a kind can recur
+                    "Storyline",
+                    story["en"],
+                    tuple(story["numbers"]),
+                )
             )
             out.append(
                 {"fact_id": fact.id, "minute": story["minute"], "kind": story["kind"], "text": story["en"]}
@@ -223,6 +244,7 @@ class StatsDesk:
                 self.team_stats,
                 self.compare,
                 self.pass_quality,
+                self.rhythm,
                 self.player_stats,
                 self.momentum,
                 self.key_moments,
