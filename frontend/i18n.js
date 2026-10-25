@@ -114,6 +114,9 @@ const TR = {
   "For blind and low-vision fans: describes where the ball is and reads everything aloud.":
     "Görme engelli ve az gören taraftarlar için: topun nerede olduğunu anlatır ve her şeyi sesli okur.",
   "Follow a player": "Bir oyuncuyu takip et",
+  "Favorite club": "Tuttuğun takım",
+  "No favorite": "Yok",
+  "supports": "taraftar:",
   "Nobody in particular": "Kimseyi",
   "Match seed": "Maç seed'i",
   "Start at minute": "Başlangıç dakikası",

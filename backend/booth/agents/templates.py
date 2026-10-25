@@ -155,7 +155,9 @@ EXPLAIN = {
 }
 
 
-def play_by_play(event: MatchEvent, match: Match, score: dict, lang: str, style: str) -> str:
+def play_by_play(
+    event: MatchEvent, match: Match, score: dict, lang: str, style: str, club: str | None = None
+) -> str:
     lang = _lang(lang)
     table = PBP[lang]
     key = event.type
@@ -180,6 +182,13 @@ def play_by_play(event: MatchEvent, match: Match, score: dict, lang: str, style:
         text += " Ne pas!" if lang == "tr" else " What a ball!"
     if style == "hype" and event.type in ("goal", "red_card", "penalty_awarded"):
         text = text.rstrip(".!") + "!!"
+    if club and event.type in ("goal", "penalty_awarded", "red_card") and event.team:
+        ours = event.team == club if event.type != "red_card" else event.team != club
+        name = match.teams[club].name
+        if ours:
+            text = ("Eveeet! " if lang == "tr" else "Yes! ") + text
+        else:
+            text = (f"{name} için kötü haber: " if lang == "tr" else f"Bad news for {name}: ") + text
     return f"{event.display_minute} {text}"
 
 

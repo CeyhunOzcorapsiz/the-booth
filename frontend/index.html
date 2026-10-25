@@ -114,7 +114,10 @@
       <label><input type="radio" name="style" value="beginner"><span><b>New to football</b>Rules explained</span></label>
     </fieldset>
     <label class="check"><input type="checkbox" id="accessible"><span><b>Audio-first mode</b>For blind and low-vision fans: describes where the ball is and reads everything aloud.</span></label>
-    <label>Follow a player<select id="follow"><option value="">Nobody in particular</option></select></label>
+    <div class="row two">
+      <label>Favorite club<select id="club"><option value="">No favorite</option><option value="home">Northstar FC</option><option value="away">Ember Athletic</option></select></label>
+      <label>Follow a player<select id="follow"><option value="">Nobody in particular</option></select></label>
+    </div>
     <div class="row">
       <label>Match seed<input id="seed" type="number" min="0" value="119"></label>
       <label>Start at minute<input id="start" type="number" min="0" max="90" value="0"></label>

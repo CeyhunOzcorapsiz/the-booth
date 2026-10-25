@@ -106,11 +106,14 @@ async def broadcast(
     style: str = "hype",
     accessible: bool = False,
     follow: str | None = None,
+    club: str | None = None,
     speed: Annotated[float, Query(gt=0, le=600)] = 20.0,
     start: Annotated[float, Query(ge=0, le=95)] = 0.0,
 ) -> StreamingResponse:
     try:
-        profile = ViewerProfile(lang=lang, style=style, accessible=accessible, follow=follow or None)
+        profile = ViewerProfile(
+            lang=lang, style=style, accessible=accessible, follow=follow or None, club=club or None
+        )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     throttle(request)
@@ -154,6 +157,7 @@ class ProfileIn(BaseModel):
     style: str = "hype"
     accessible: bool = False
     follow: str | None = None
+    club: str | None = None
 
 
 class CompareRequest(BaseModel):

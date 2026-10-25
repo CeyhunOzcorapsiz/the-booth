@@ -269,3 +269,18 @@ async def test_segments_that_fail_the_check_are_not_marked_verified(monkeypatch)
     _, trace = collect_trace()
     segments = await crew.produce(goal_job(), ViewerProfile("en", "calm"), trace)
     assert segments and not any(s.verified for s in segments)
+
+
+async def test_favorite_club_changes_the_call():
+    job = goal_job()
+    scorer_team = job.event.team
+    other = "away" if scorer_team == "home" else "home"
+    _, trace = collect_trace()
+    ours = await Crew(None).produce(job, ViewerProfile("en", "calm", club=scorer_team), trace)
+    theirs = await Crew(None).produce(job, ViewerProfile("en", "calm", club=other), trace)
+    neutral = await Crew(None).produce(job, ViewerProfile("en", "calm"), trace)
+    assert "Yes!" in ours[0].text
+    assert "Bad news for" in theirs[0].text
+    assert "Yes!" not in neutral[0].text and "Bad news" not in neutral[0].text
+    with pytest.raises(ValueError):
+        ViewerProfile(club="both")

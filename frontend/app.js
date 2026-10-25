@@ -94,7 +94,7 @@ $("setupForm").addEventListener("submit", (e) => {
   const form = new FormData(e.target);
   profile = {
     seed: Number($("seed").value) || 0, lang: $("lang").value, style: form.get("style"),
-    accessible: $("accessible").checked, follow: $("follow").value, speed: $("speed").value,
+    accessible: $("accessible").checked, follow: $("follow").value, club: $("club").value, speed: $("speed").value,
     start: Number($("start").value) || 0,
   };
   if (profile.accessible) setVoice(true);
@@ -117,6 +117,7 @@ function goLive() {
   const params = new URLSearchParams({ seed: profile.seed, lang: profile.lang, style: profile.style,
     accessible: profile.accessible, speed: profile.speed, start: profile.start });
   if (profile.follow) params.set("follow", profile.follow);
+  if (profile.club) params.set("club", profile.club);
   source = new EventSource(`/api/broadcast?${params}`);
   source.addEventListener("hello", (e) => onHello(JSON.parse(e.data)));
   source.addEventListener("event", (e) => onEvent(JSON.parse(e.data)));
@@ -155,6 +156,7 @@ function onHello(msg) {
   setProvider(msg.llm);
   const p = msg.profile;
   const chips = [p.lang.toUpperCase(), t(STYLE_NAMES[p.style] ?? p.style), p.accessible ? t("audio-first") : null,
+    p.club ? `${t("supports")} ${msg.match.teams[p.club].name}` : null,
     p.follow ? `${t("following")} ${players[p.follow]?.name ?? p.follow}` : null, `seed ${msg.match.seed}`].filter(Boolean);
   $("profileChips").replaceChildren(...chips.map((c) => Object.assign(document.createElement("span"),
     { className: "chip", textContent: c })));
@@ -355,7 +357,7 @@ if (params.get("view") === "compare") {
   const style = params.get("style") ?? "hype";
   profile = {
     seed: Number($("seed").value) || 0, lang: params.get("lang") ?? "en", style,
-    accessible: params.get("accessible") === "1", follow: params.get("follow") ?? "",
+    accessible: params.get("accessible") === "1", follow: params.get("follow") ?? "", club: params.get("club") ?? "",
     speed: params.get("speed") ?? "20", start: Number(params.get("start")) || 0,
   };
   $("lang").value = profile.lang;

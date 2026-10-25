@@ -110,11 +110,16 @@ def events(seed: int = 119, from_minute: float = 0, to_minute: float = 95, types
 
 @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
 async def broadcast_moment(
-    event_id: str, seed: int = 119, lang: str = "en", style: str = "hype", accessible: bool = False
+    event_id: str,
+    seed: int = 119,
+    lang: str = "en",
+    style: str = "hype",
+    accessible: bool = False,
+    club: str | None = None,
 ) -> dict:
     """Have the booth's crew broadcast one moment (event id from ``highlights``) for a viewer profile.
     Returns the fact-checked segments and every agent hand-off. Uses a model if one is configured."""
-    profile = ViewerProfile(lang=lang, style=style, accessible=accessible)
+    profile = ViewerProfile(lang=lang, style=style, accessible=accessible, club=club)
     result = await moment.compare(_match(seed), event_id, [profile], _crew_instance())
     return result["broadcasts"][0] | {"event": result["event"]}
 

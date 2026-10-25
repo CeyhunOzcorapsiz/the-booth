@@ -62,6 +62,13 @@ class Writers:
         followed = job.state.match.player(profile.follow) if profile.follow else None
         if followed:
             context["viewer_follows"] = followed.name
+        if profile.club:
+            club = job.state.match.teams[profile.club].name
+            context["viewer_supports"] = club
+            context["style"] += (
+                f". The viewer supports {club}: be warm towards them, but stay fair and factual"
+            )
+
         if sheet is not None:
             context["facts"] = sheet.to_list()
         return context
@@ -90,7 +97,7 @@ class Writers:
     def write_template(kind: str, job: Job, profile: ViewerProfile, sheet: FactSheet, lang: str) -> str:
         event, match, snapshot = job.event, job.state.match, job.state.snapshot
         if kind == "pbp":
-            text = templates.play_by_play(event, match, snapshot["score"], lang, profile.style)
+            text = templates.play_by_play(event, match, snapshot["score"], lang, profile.style, profile.club)
             if profile.accessible and event.type in ("shot", "foul", "free_kick", "corner", "goal"):
                 text += (
                     " " + templates.describe_location(event.x, event.y, event.team, lang).capitalize() + "."

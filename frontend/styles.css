@@ -176,6 +176,7 @@ dialog select, dialog input[type="number"] { background: var(--panel-2); border:
 .styles b, .check b { color: var(--text); font-size: 13px; }
 .styles input, .check input { accent-color: var(--lime); margin-top: 3px; }
 .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.row.two { grid-template-columns: 1fr 1fr; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
 @media (max-width: 1080px) {

@@ -73,6 +73,12 @@ class Director:
             score += 0.25  # a killer pass is worth a line even though passes usually aren't
         if self.profile.follow and self.profile.follow in (event.player, event.target):
             score += 0.35
+        if (
+            self.profile.club
+            and event.team == self.profile.club
+            and event.type in ("shot", "corner", "free_kick")
+        ):
+            score += 0.1  # the viewer's own team gets a little more air time
         return round(min(score, 1.0), 2)
 
     def plan(self, event: MatchEvent, state: MatchState) -> Job | None:

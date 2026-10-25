@@ -27,6 +27,7 @@ class ViewerProfile:
     style: str = "hype"
     accessible: bool = False
     follow: str | None = None
+    club: str | None = None  # 'home' or 'away': the viewer's team
 
     def __post_init__(self):
         if self.lang not in LANGUAGES:
@@ -35,13 +36,15 @@ class ViewerProfile:
             raise ValueError(f"Unknown style '{self.style}'.")
         if self.follow is not None and (len(self.follow) > 4 or self.follow[:1] not in ("H", "A")):
             raise ValueError("follow must be a player id such as H9 or A10.")
+        if self.club not in (None, "home", "away"):
+            raise ValueError("club must be 'home' or 'away'.")
 
     @property
     def language_name(self) -> str:
         return LANGUAGES[self.lang]
 
     def key(self) -> str:
-        return f"{self.lang}|{self.style}|{int(self.accessible)}|{self.follow or '-'}"
+        return f"{self.lang}|{self.style}|{int(self.accessible)}|{self.follow or '-'}|{self.club or '-'}"
 
     def to_dict(self) -> dict:
         return asdict(self)
