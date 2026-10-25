@@ -1,0 +1,9 @@
+{
+  "name": "ghost-play-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence-led football storytelling from synthetic tracking data.",
+  "scripts": { "start": "node --env-file-if-exists=.env server.mjs", "test": "node --test tests/*.test.mjs", "data": "node tools/generate-data.mjs", "check": "node --check server.mjs && node --check public/app.mjs && node --check lib/football.mjs" },
+  "engines": { "node": ">=22" }
+}
