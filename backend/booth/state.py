@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 from booth.agents.storyline import Storyline, StorylineTracker
 from booth.sim.match import Match, MatchEvent
+from booth.sim.tracking import Tracking, tracking_for
 
 MOMENTUM_WINDOW_S = 300
 MOMENTUM_WEIGHTS = {"pass": 0.4, "corner": 2.0, "free_kick": 1.0, "goal": 6.0, "penalty_awarded": 3.0}
@@ -198,8 +199,28 @@ class MatchState:
         away = sum(w for *_, team, w in self._momentum if team == "away")
         return round((home - away) / (home + away + 1.0), 2)
 
+    @property
+    def tracking(self) -> Tracking:
+        return tracking_for(self.match)
+
+    def physical(self, pid: str) -> dict:
+        """Distance, top speed and sprints for a player up to now (from synthetic tracking)."""
+        e = self.last_event
+        if e is None:
+            return {"distance_km": 0.0, "top_speed_kmh": 0.0, "sprints": 0, "high_intensity_m": 0}
+        return self.tracking.stats_until(pid, e.period, e.clock)
+
+    def _team_physical(self, team: str) -> dict:
+        totals = {"distance_km": 0.0, "sprints": 0}
+        for p in self.match.teams[team].players:
+            stats = self.physical(p.id)
+            totals["distance_km"] += stats["distance_km"]
+            totals["sprints"] += stats["sprints"]
+        return {"distance_km": round(totals["distance_km"], 1), "sprints": totals["sprints"]}
+
     def team_line(self, team: str) -> dict:
         t = self.teams[team]
+        physical = self._team_physical(team)
         return {
             "goals": self.score[team],
             "possession_pct": self.possession_pct()[team],
@@ -216,6 +237,8 @@ class MatchState:
             else 0,
             "hard_passes_completed": int(t["hard_passes_completed"]),
             "fastest_shot_kmh": int(t["fastest_shot_kmh"]),
+            "distance_km": physical["distance_km"],
+            "sprints": physical["sprints"],
             "saves": int(t["saves"]),
             "offsides": int(t["offsides"]),
             "final_third_entries": int(t["final_third_entries"]),
@@ -243,4 +266,7 @@ class MatchState:
             "storylines": [s.to_dict() for s in self.story.storylines[-8:]],
             "rhythm": self.story.rhythm.snapshot(),
             "on_pitch": {team: list(ids) for team, ids in self.on_pitch.items()},
+            "positions": self.tracking.positions(self.last_event.period, self.last_event.clock)
+            if self.last_event
+            else {},
         }

@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 
 from booth.sim.match import generate_match
+from booth.sim.tracking import tracking_for_seed
 from booth.state import MatchState
 
 EVENT_FIELDS = [
@@ -91,7 +92,12 @@ PLAYER_FIELDS = [
     "saves",
     "yellow_cards",
     "red_cards",
+    "distance_km",
+    "top_speed_kmh",
+    "sprints",
+    "high_intensity_m",
 ]
+TRACKING_FIELDS = ["match_id", "period", "clock_s", "player_id", "x", "y", "speed_kmh"]
 STORY_FIELDS = [
     "match_id",
     "storyline_id",
@@ -181,7 +187,8 @@ def match_rows(seed: int) -> dict[str, list[dict]]:
                     "name": p.name,
                     "position": p.position,
                     "starter": p.starter,
-                    **{k: int(counters.get(k, 0)) for k in PLAYER_FIELDS[8:]},
+                    **{k: int(counters.get(k, 0)) for k in PLAYER_FIELDS[8:-4]},
+                    **state.tracking.stats_until(p.id, 2, 1e9),
                 }
             )
     story_rows = [
@@ -201,7 +208,28 @@ def match_rows(seed: int) -> dict[str, list[dict]]:
     return {"matches": [summary], "events": events, "players": players, "storylines": story_rows}
 
 
-def export(first_seed: int, matches: int, out: Path) -> dict[str, int]:
+def tracking_rows(seed: int) -> list[dict]:
+    """1 Hz positions and speeds of every player (about 125,000 rows per match)."""
+    tracking = tracking_for_seed(seed)
+    rows = []
+    for pid, track in tracking.players.items():
+        for t, (x, y), speed in zip(track.times, track.xy, track.speed, strict=True):
+            period = 2 if t >= 10_000 else 1
+            rows.append(
+                {
+                    "match_id": f"M{seed:06d}",
+                    "period": period,
+                    "clock_s": round(t - (10_000 if period == 2 else 0), 1),
+                    "player_id": pid,
+                    "x": round(x, 2),
+                    "y": round(y, 2),
+                    "speed_kmh": round(speed, 1),
+                }
+            )
+    return rows
+
+
+def export(first_seed: int, matches: int, out: Path, with_tracking: bool = False) -> dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     tables = {
         "matches": (MATCH_FIELDS, open(out / "matches.csv", "w", newline="", encoding="utf-8")),
@@ -214,6 +242,11 @@ def export(first_seed: int, matches: int, out: Path) -> dict[str, int]:
         writers[name] = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
         writers[name].writeheader()
     counts = dict.fromkeys(tables, 0)
+    tracking_file = open(out / "tracking.csv", "w", newline="", encoding="utf-8") if with_tracking else None
+    if tracking_file:
+        tracking_writer = csv.DictWriter(tracking_file, fieldnames=TRACKING_FIELDS)
+        tracking_writer.writeheader()
+        counts["tracking"] = 0
     with open(out / "events.jsonl", "w", encoding="utf-8") as jsonl:
         for seed in range(first_seed, first_seed + matches):
             rows = match_rows(seed)
@@ -222,8 +255,14 @@ def export(first_seed: int, matches: int, out: Path) -> dict[str, int]:
                 counts[name] += len(items)
             for event in rows["events"]:
                 jsonl.write(json.dumps(event, ensure_ascii=False) + "\n")
+            if tracking_file:
+                samples = tracking_rows(seed)
+                tracking_writer.writerows(samples)
+                counts["tracking"] += len(samples)
     for _, fh in tables.values():
         fh.close()
+    if tracking_file:
+        tracking_file.close()
     return counts
 
 
@@ -232,8 +271,9 @@ def main() -> None:
     parser.add_argument("--matches", type=int, default=50)
     parser.add_argument("--first-seed", type=int, default=1)
     parser.add_argument("--out", default="synthetic-data")
+    parser.add_argument("--tracking", action="store_true", help="also write 1 Hz player tracking (large)")
     args = parser.parse_args()
-    counts = export(args.first_seed, args.matches, Path(args.out))
+    counts = export(args.first_seed, args.matches, Path(args.out), with_tracking=args.tracking)
     print(json.dumps({"out": str(Path(args.out).resolve()), **counts}, indent=2))
 
 

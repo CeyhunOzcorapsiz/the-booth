@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Annotated
 
+from booth.sim.tracking import tracking_for
 from booth.state import FrozenState
 
 
@@ -153,6 +154,50 @@ class StatsDesk:
                 Fact(f"F-{pid}-{stat}", f"{p.name} {stat.replace('_', ' ')}", str(value), (value,))
             )
             out[stat] = {"value": value, "fact_id": fact.id}
+        out.update(self._physical_facts(pid, p.name))
+        return out
+
+    def _physical_facts(self, pid: str, name: str) -> dict:
+        event = self.state.event
+        if event is None:
+            return {}
+        stats = tracking_for(self.match).stats_until(pid, event.period, event.clock)
+        out = {}
+        labels = {
+            "distance_km": "distance covered (km)",
+            "top_speed_kmh": "top speed (km/h)",
+            "sprints": "sprints",
+        }
+        for stat, label in labels.items():
+            value = stats[stat]
+            if not value:
+                continue
+            fact = self.sheet.add(Fact(f"F-{pid}-{stat}", f"{name} {label}", str(value), (value,)))
+            out[stat] = {"value": value, "fact_id": fact.id}
+        return out
+
+    def physical(self, team: Annotated[str, "'home' or 'away' (or the club name)"]) -> dict:
+        """Running stats from tracking: team distance and sprints, the three biggest runners, the fastest player."""
+        key = self._resolve_team(team)
+        event = self.state.event
+        name = self._team_name(key)
+        line = self.state.snapshot["teams"][key]
+        out = {"team": name}
+        for stat, label in (("distance_km", "distance covered (km)"), ("sprints", "sprints")):
+            fact = self.sheet.add(Fact(f"F-{key}-{stat}", f"{name} {label}", str(line[stat]), (line[stat],)))
+            out[stat] = {"value": line[stat], "fact_id": fact.id}
+        if event is None:
+            return out
+        tracking = tracking_for(self.match)
+        squad = [
+            (p, tracking.stats_until(p.id, event.period, event.clock)) for p in self.match.teams[key].players
+        ]
+        squad = [(p, s) for p, s in squad if s["distance_km"] > 0]
+        runners = sorted(squad, key=lambda ps: -ps[1]["distance_km"])[:3]
+        out["top_runners"] = [{"player": p.name, **self._physical_facts(p.id, p.name)} for p, _ in runners]
+        if squad:
+            fastest, _ = max(squad, key=lambda ps: ps[1]["top_speed_kmh"])
+            out["fastest"] = {"player": fastest.name, **self._physical_facts(fastest.id, fastest.name)}
         return out
 
     def momentum(self) -> dict:
@@ -244,6 +289,7 @@ class StatsDesk:
                 self.team_stats,
                 self.compare,
                 self.pass_quality,
+                self.physical,
                 self.rhythm,
                 self.player_stats,
                 self.momentum,

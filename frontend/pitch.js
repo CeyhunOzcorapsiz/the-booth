@@ -1,8 +1,8 @@
 // Draws the pitch: the ball, all 22 players and a short trail of recent actions.
 //
-// The data is event-level (who did what, where), not full tracking. Players involved in an event are drawn
-// exactly where the event happened; everyone else is placed by their 4-3-3 slot, shifted with the ball and
-// with who has possession. Those positions are illustrative, and the caption says so.
+// Players come from the server's synthetic tracking (1 Hz, all 22 players). Players involved in the event
+// are drawn exactly where it happened. If a state has no positions (older recordings), everyone else falls
+// back to their 4-3-3 slot shifted with the ball.
 const NS = "http://www.w3.org/2000/svg";
 const TRAIL = 24;
 // Slot order matches the server lineup: shirts 1, 2, 3, 4, 5, 6, 8, 10, 7, 9, 11 (home attacking right).
@@ -75,7 +75,7 @@ export class Pitch {
       lineup.forEach((pid, slot) => {
         if (!pid || !players[pid]) return;
         seen.add(pid);
-        const [x, y] = pinned[pid] ?? this.#slotPosition(team, slot, ballX, ballY, attacking);
+        const [x, y] = pinned[pid] ?? state.positions?.[pid] ?? this.#slotPosition(team, slot, ballX, ballY, attacking);
         this.#place(players[pid], x, y, Boolean(pinned[pid]));
       });
     }
@@ -104,6 +104,14 @@ export class Pitch {
     x = clamp(x, 2, 101);
     y = clamp(y, 2, 66);
     return flip ? [105 - x, 68 - y] : [x, y];
+  }
+
+  /** Show a metric next to a player for a moment (e.g. a sprint speed from an overlay cue). */
+  tag(pid, label) {
+    const dot = this.dots.get(pid);
+    if (!dot) return;
+    dot.classList.add("active");
+    dot.querySelector(".label").textContent = `${dot.querySelector(".label").textContent.split(" · ")[0]} · ${label}`;
   }
 
   #place(player, x, y, active) {

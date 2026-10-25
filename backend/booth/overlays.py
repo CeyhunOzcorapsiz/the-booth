@@ -8,6 +8,7 @@ state, so overlays are as verifiable as the commentary. See docs/OVERLAYS.md for
 from __future__ import annotations
 
 from booth.sim.match import Match, MatchEvent
+from booth.sim.tracking import tracking_for
 from booth.state import MatchState
 
 SCHEMA_VERSION = "1.0"
@@ -15,6 +16,7 @@ STAT_CARD_EVERY_S = 15 * 60
 FAST_SHOT_KMH = 100
 KILLER_PASS = 80
 LONG_BALL_M = 45
+SPRINT_TAG_KMH = 30
 
 LABELS = {
     "en": {
@@ -36,6 +38,8 @@ LABELS = {
         "on_target": "On target",
         "pass_acc": "Pass accuracy %",
         "storyline": "STORYLINE",
+        "distance": "Distance (km)",
+        "sprint": "sprint",
     },
     "tr": {
         "goal": "GOL",
@@ -56,6 +60,8 @@ LABELS = {
         "on_target": "İsabetli şut",
         "pass_acc": "Pas isabeti %",
         "storyline": "HİKÂYE",
+        "distance": "Koşu mesafesi (km)",
+        "sprint": "sprint",
     },
 }
 
@@ -233,6 +239,27 @@ class OverlayBuilder:
                     )
                 )
 
+        if event.type in ("tackle", "interception", "shot") and event.player:
+            run = tracking_for(self.match).speed_at(event.player, event.period, event.clock)
+            if run >= SPRINT_TAG_KMH and not any(c["type"] == "player_tag" for c in cues):
+                cues.append(
+                    self._cue(
+                        event,
+                        "player_tag",
+                        4,
+                        2,
+                        {
+                            "player": self._name(event.player),
+                            "metric": "running_speed_kmh",
+                            "value": run,
+                            "label": f"{t['sprint']} {run:.0f} km/h",
+                            "x": event.x,
+                            "y": event.y,
+                        },
+                        [event.id],
+                    )
+                )
+
         for story in state.new_storylines:
             cues.append(
                 self._cue(
@@ -265,6 +292,7 @@ class OverlayBuilder:
             (t["shots"], h["shots"], a["shots"], "shots"),
             (t["on_target"], h["shots_on_target"], a["shots_on_target"], "shots_on_target"),
             (t["pass_acc"], h["pass_accuracy_pct"], a["pass_accuracy_pct"], "pass_accuracy_pct"),
+            (t["distance"], h["distance_km"], a["distance_km"], "distance_km"),
         ]
         title = t.get(event.type, t["stats"]) if event.type in ("half_time", "full_time") else t["stats"]
         return self._cue(

@@ -54,6 +54,7 @@ class Director:
 
     def __init__(self, profile: ViewerProfile):
         self.profile = profile
+        self.tracking = None  # set from the shared state on the first plan()
         self._last_line = -1e9
         self._last_follow = -1e9
         self._last_spatial = -1e9
@@ -69,6 +70,9 @@ class Director:
             score += 0.25 if event.outcome == "saved" and quality > 0.25 else 0.0
             score += 0.1 if event.detail.get("situation") == "penalty" else 0.0
             score += 0.05 if event.detail.get("ball_speed_kmh", 0) >= 105 else 0.0
+        if event.type in ("tackle", "interception") and event.player and self.tracking is not None:
+            if self.tracking.speed_at(event.player, event.period, event.clock) >= 30:
+                score += 0.3  # a recovery sprint
         if event.type == "pass" and event.outcome == "complete" and event.detail.get("difficulty", 0) >= 80:
             score += 0.25  # a killer pass is worth a line even though passes usually aren't
         if self.profile.follow and self.profile.follow in (event.player, event.target):
@@ -84,6 +88,7 @@ class Director:
     def plan(self, event: MatchEvent, state: MatchState) -> Job | None:
         """Return the work to do for this event, or ``None`` to stay quiet."""
         style = self.profile.style
+        self.tracking = state.tracking
         importance = self.importance(event)
         clock = event.clock
         kinds: list[str] = []

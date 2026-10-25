@@ -10,6 +10,7 @@ import zlib
 
 from booth.facts import FactSheet
 from booth.sim.match import PITCH_LENGTH, Match, MatchEvent
+from booth.sim.tracking import tracking_for
 
 SUPPORTED = ("en", "tr")
 
@@ -175,6 +176,9 @@ def play_by_play(
     text = _pick(table[key], event.id).format(**values)
     if style == "tactical" and event.type in ("goal", "shot", "pass", "foul", "tackle", "interception"):
         text += " " + _tactical_suffix(event, match, lang)
+    run = round(tracking_for(match).speed_at(event.player, event.period, event.clock)) if event.player else 0
+    if event.type in ("tackle", "interception") and run >= 30 and style in ("hype", "tactical"):
+        text += f" {run} km/sa hızla geri koştu!" if lang == "tr" else f" A recovery sprint at {run} km/h!"
     speed = event.detail.get("ball_speed_kmh", 0)
     if style in ("hype", "calm", "beginner") and event.type == "shot" and speed >= 100:
         text += f" Top {speed} km/sa hızla gitti." if lang == "tr" else f" Struck at {speed} km/h!"
@@ -333,8 +337,23 @@ def _story_rank(story: dict) -> int:
     return STORY_PRIORITY.index(story["kind"]) if story["kind"] in STORY_PRIORITY else len(STORY_PRIORITY)
 
 
-def recap(match: Match, snapshot: dict, lang: str, final: bool) -> str:
+def _top_runner(match: Match, sheet: FactSheet | None) -> tuple[str, str] | None:
+    """(name, km) of the biggest runner on the sheet, if the stats producer fetched running stats."""
+    if sheet is None:
+        return None
+    best = None
+    for fact_id, fact in sheet.facts.items():
+        parts = fact_id.split("-")
+        if len(parts) == 3 and parts[2] == "distance_km" and parts[1][:1] in ("H", "A"):
+            player = match.player(parts[1])
+            if player and (best is None or float(fact.value) > float(best[1])):
+                best = (player.short_name, fact.value)
+    return best
+
+
+def recap(match: Match, snapshot: dict, lang: str, final: bool, sheet: FactSheet | None = None) -> str:
     lang = _lang(lang)
+    runner = _top_runner(match, sheet)
     stories = sorted(snapshot.get("storylines", []), key=_story_rank)
     story = (" " + (stories[0]["tr"] if lang == "tr" else stories[0]["en"])) if stories else ""
     home, away = match.teams["home"].name, match.teams["away"].name
@@ -348,6 +367,7 @@ def recap(match: Match, snapshot: dict, lang: str, final: bool) -> str:
             f"{head}: {home} {s['home']}-{s['away']} {away}.{story} Goller: {scorers}. "
             f"Topa sahip olma %{th['possession_pct']}-%{ta['possession_pct']}, "
             f"şutlar {th['shots']}-{ta['shots']} (isabetli {th['shots_on_target']}-{ta['shots_on_target']})."
+            + (f" En çok koşan: {runner[0]}, {runner[1]} km." if runner else "")
         )
     head = "Full time" if final else "Half-time report"
     scorers = ", ".join(f"{m['player']} {m['minute']}" for m in goals) or "no goals"
@@ -355,4 +375,5 @@ def recap(match: Match, snapshot: dict, lang: str, final: bool) -> str:
         f"{head}: {home} {s['home']}-{s['away']} {away}.{story} Goals: {scorers}. "
         f"Possession {th['possession_pct']}%-{ta['possession_pct']}%, "
         f"shots {th['shots']}-{ta['shots']} ({th['shots_on_target']}-{ta['shots_on_target']} on target)."
+        + (f" Most distance covered: {runner[0]}, {runner[1]} km." if runner else "")
     )

@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from booth.facts import FactSheet
 from booth.llm import LLMRuntime, LLMUnavailable
 from booth.sim.match import Match, MatchEvent
+from booth.sim.tracking import tracking_for
 from booth.state import FrozenState
 
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)")
@@ -49,10 +50,12 @@ def allowed_numbers(event: MatchEvent, state: FrozenState, sheet: FactSheet) -> 
     for key in ("distance_m", "minutes", "pass_distance_m", "difficulty", "ball_speed_kmh", "progressive_m"):
         if key in event.detail:
             allowed.add(float(event.detail[key]))
+    tracking = tracking_for(state.match)
     for pid in (event.player, event.target):
         player = state.match.player(pid)
         if player:
             allowed.add(float(player.number))
+            allowed.add(float(round(tracking.speed_at(pid, event.period, event.clock))))
     return allowed
 
 

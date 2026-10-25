@@ -47,6 +47,8 @@ class StatsProducer:
             desk.team_stats("away")
             desk.key_moments()
             desk.storylines()
+            desk.physical("home")
+            desk.physical("away")
             return
         if "stats" in job.kinds and "color" not in job.kinds:
             for stat in ("possession_pct", "shots", "shots_on_target", "corners"):

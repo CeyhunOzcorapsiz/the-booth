@@ -25,6 +25,7 @@ const TOAST = { goal: "GOAL", shot: "SHOT", corner: "CORNER", foul: "FOUL", yell
 const STAT_ROWS = [["possession_pct", "Possession %"], ["shots", "Shots"], ["shots_on_target", "On target"],
   ["fastest_shot_kmh", "Fastest shot (km/h)"], ["corners", "Corners"], ["passes", "Passes"],
   ["pass_accuracy_pct", "Pass accuracy %"], ["avg_pass_difficulty", "Avg pass difficulty (0-100)"],
+  ["distance_km", "Distance (km)"], ["sprints", "Sprints"],
   ["fouls", "Fouls"], ["yellow_cards", "Yellow cards"], ["saves", "Saves"]];
 // Thresholds for metric call-outs (the brief's "indicators triggered when predefined thresholds are reached").
 const FAST_SHOT_KMH = 100;
@@ -271,6 +272,7 @@ function showGfx(id, build, seconds) {
 
 function onOverlay(cue) {
   const p = cue.payload;
+  if (cue.type === "player_tag" && p.metric === "running_speed_kmh" && p.player) pitch.tag(p.player.id, p.label);
   if (cue.type === "lower_third") {
     showGfx("lowerThird", (box) => {
       box.className = `lower-third${p.player && players[p.player.id]?.team === "away" ? " away" : ""}`;
