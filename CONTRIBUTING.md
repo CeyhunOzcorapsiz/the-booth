@@ -35,7 +35,10 @@ The app runs without any keys (template crew). For the model-backed crew see [do
 | `backend/booth/state.py`, `facts.py` | Shared match state and the stats desk (agent tools) |
 | `backend/booth/agents/` | Director, stats producer, writers, fact-checker, localizer, templates |
 | `backend/booth/crew.py`, `orchestrator.py` | Hand-offs per job; the live broadcast loop |
+| `backend/booth/workflow.py` | Agent Framework workflow: writer ⇄ fact-checker → localizer |
+| `backend/booth/agents/storyline.py` | Storyline agent (match memory) |
 | `backend/booth/api.py` | HTTP API, rate limits, static frontend |
+| `backend/booth/mcp_server.py`, `dataset.py`, `evaluate.py` | MCP server, dataset export, crew evaluation |
 | `frontend/` | Web UI (no build step) |
 | `infra/deploy.sh` | Azure setup |
 | `docs/` | Architecture, deploy, free setup, pitch, demo script |

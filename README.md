@@ -78,6 +78,7 @@ flowchart LR
 | Frontend | Vanilla JS + SVG |
 | Hosting | **Azure Container Apps**, image built by GitHub Actions and published to GitHub Container Registry |
 | Observability | **Azure Monitor / Application Insights** via OpenTelemetry: a span per director job, plus Agent Framework spans for agent runs, model calls and tool calls |
+| Interop | **Model Context Protocol** server (stats desk + crew as tools) for GitHub Copilot and other agents |
 | Dev | GitHub, GitHub Actions CI, GitHub Copilot |
 
 More detail: [architecture](docs/ARCHITECTURE.md) · [synthetic dataset](docs/DATASET.md) · [deploy to Azure](docs/DEPLOY.md) · [free setup](docs/FREE_SETUP.md) · [pitch](docs/PITCH.md) · [demo script](docs/DEMO.md).
@@ -108,6 +109,24 @@ Without any configuration the crew runs on deterministic templates (English and 
 docker build -t the-booth .
 docker run -p 8000:8000 --env-file .env the-booth
 ```
+
+### Use it from GitHub Copilot or any MCP client
+
+```bash
+cd backend
+python -m booth.mcp_server            # stdio; add --http --port 8765 for streamable HTTP
+```
+
+The MCP server exposes the stats desk and the crew as tools: `squads`, `highlights`, `score`, `team_stats`, `player_stats`, `storylines`, `events` and `broadcast_moment` (the fact-checked crew commentates one moment for a language and style). `.vscode/mcp.json` registers it for GitHub Copilot agent mode in VS Code.
+
+### Export the synthetic dataset
+
+```bash
+cd backend
+python -m booth.dataset --matches 200 --out ../synthetic-data
+```
+
+Writes matches, events (CSV and JSONL), players and storylines tables, ready for Microsoft Fabric or pandas. Schema: [docs/DATASET.md](docs/DATASET.md).
 
 ### Evaluate the crew
 

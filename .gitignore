@@ -12,7 +12,8 @@ __pycache__/
 !.env.example
 
 # Editors / OS
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
 .DS_Store
 Thumbs.db

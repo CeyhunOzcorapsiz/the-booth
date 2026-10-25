@@ -66,3 +66,18 @@ def test_moments_and_side_by_side_compare():
     assert custom["broadcasts"][0]["segments"][0]["lang"] == "tr"
     assert client.post("/api/compare", json={"seed": 9, "event_id": "E9999"}).status_code == 404
     assert client.post("/api/compare", json={"seed": 9, "event_id": "x"}).status_code == 422
+
+
+async def test_mcp_server_exposes_the_stats_desk_and_crew():
+    import json as _json
+
+    from booth.mcp_server import server
+
+    names = {t.name for t in await server.list_tools()}
+    assert {"highlights", "score", "storylines", "broadcast_moment"} <= names
+    result = await server.call_tool("score", {"seed": 119, "minute": 95})
+    assert _json.loads(result.content[0].text)["home_goals"] == 3
+    winner = _json.loads((await server.call_tool("highlights", {"seed": 119})).content[-1].text)
+    show = await server.call_tool("broadcast_moment", {"seed": 119, "event_id": winner["event_id"]})
+    body = _json.loads(show.content[0].text)
+    assert body["segments"] and body["trace"]

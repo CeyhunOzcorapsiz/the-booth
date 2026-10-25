@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "the-booth": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/backend/.venv/Scripts/python",
+      "args": ["-m", "booth.mcp_server"],
+      "cwd": "${workspaceFolder}/backend"
+    }
+  }
+}
