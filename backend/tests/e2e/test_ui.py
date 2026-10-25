@@ -103,15 +103,23 @@ def test_ask_the_booth_answers_with_sources(page, base_url):
     assert "%" in page.locator("#answer").inner_text() or "possession" in page.locator("#answer").inner_text()
 
 
+def close_setup(page):
+    """The setup dialog opens after the page has loaded its data; wait for it before dismissing it."""
+    dialog = page.locator("#setup")
+    playwright_api.expect(dialog).to_be_visible()
+    page.keyboard.press("Escape")
+    playwright_api.expect(dialog).to_be_hidden()
+
+
 def test_interface_switches_to_turkish_and_remembers_it(page, base_url):
     page.goto(base_url)
-    page.keyboard.press("Escape")
+    close_setup(page)
     assert page.locator(".control-room h2").inner_text() == "Control room"
     page.click("#uiLang")
     assert page.locator(".control-room h2").inner_text() == "Kontrol odası"
     assert page.locator("html").get_attribute("lang") == "tr"
     page.reload()
-    page.keyboard.press("Escape")
+    close_setup(page)
     assert page.locator(".control-room h2").inner_text() == "Kontrol odası"
     assert page.locator("#goLive").inner_text() == "Yayına başla"
     page.click("#uiLang")
