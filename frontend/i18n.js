@@ -1,5 +1,23 @@
-// Interface language (English / Turkish). Independent of the broadcast language a viewer picks.
+// Interface language: any of the 12 broadcast languages. Going live switches it to the broadcast language.
 // Static text in index.html is translated by walking the page; dynamic text goes through t().
+// TR doubles as the list of keys: each file in locales/ has one translation per key, in this order.
+import ar from "./locales/ar.js";
+import de from "./locales/de.js";
+import es from "./locales/es.js";
+import fr from "./locales/fr.js";
+import hi from "./locales/hi.js";
+import it from "./locales/it.js";
+import ja from "./locales/ja.js";
+import nl from "./locales/nl.js";
+import pt from "./locales/pt.js";
+import sw from "./locales/sw.js";
+
+/** Each language in its own name, in the order the broadcast picker lists them. */
+export const LANG_NAMES = {
+  en: "English", tr: "Türkçe", es: "Español", de: "Deutsch", fr: "Français", pt: "Português", it: "Italiano",
+  ar: "العربية", nl: "Nederlands", ja: "日本語", hi: "हिन्दी", sw: "Kiswahili",
+};
+
 const TR = {
   // top bar and views
   "Skip to your broadcast": "Yayına atla",
@@ -151,24 +169,51 @@ const TR = {
   "Cancel": "Vazgeç",
   "Go live": "Yayına başla",
   "(needs a model)": "(model gerekir)",
+  // control room trace
+  "start": "başladı",
+  "done": "tamam",
+  "planned": "planlandı",
+  "cache": "önbellek",
+  "approved": "onaylandı",
+  "rejected": "reddedildi",
+  "fallback": "yedek",
+  "dropped": "atlandı",
+  "pulling context with tools": "araçlarla bağlam toplanıyor",
+  "facts via model tool calls": "gerçek, model tool çağrılarıyla",
+  "facts via rule-based selection": "gerçek, kural tabanlı seçimle",
+  "template numbers and names traced to data": "şablondaki sayı ve isimler veriye bağlandı",
+  "segments reused from another viewer": "segment başka izleyiciden yeniden kullanıldı",
+  "drafting, attempt": "taslak yazılıyor, deneme",
+  "behind live play": "canlı oyunun gerisinde",
+  "adapted for": "uyarlandı:",
+  "importance": "önem",
+  "tackle": "top kapma",
+  "interception": "araya girme",
 };
+const KEYS = Object.keys(TR);
+const zip = (values, code) => {
+  if (values.length !== KEYS.length) console.error(`locales/${code}.js has ${values.length} entries, expected ${KEYS.length}`);
+  return Object.fromEntries(KEYS.map((key, i) => [key, values[i]]));
+};
+const DICT = { tr: TR, ...Object.fromEntries(Object.entries({ es, de, fr, pt, it, nl, ar, ja, hi, sw }).map(([k, v]) => [k, zip(v, k)])) };
 const ATTRS = ["placeholder", "aria-label", "title"];
 const KEY = "booth.uiLang";
 
 function initial() {
   try {
     const saved = localStorage.getItem(KEY);
-    if (saved === "en" || saved === "tr") return saved;
+    if (saved in LANG_NAMES) return saved;
   } catch {
     // storage blocked: fall back to the browser language
   }
-  return navigator.language?.toLowerCase().startsWith("tr") ? "tr" : "en";
+  const browser = navigator.language?.toLowerCase().slice(0, 2);
+  return browser in LANG_NAMES ? browser : "en";
 }
 
 let lang = initial();
 
 export const uiLang = () => lang;
-export const t = (en) => (lang === "tr" && TR[en]) || en;
+export const t = (en) => DICT[lang]?.[en] || en;
 
 export function translate(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -195,14 +240,15 @@ export function translate(root) {
 export function applyStatic() {
   document.documentElement.lang = lang;
   translate(document.body);
-  const toggle = document.getElementById("uiLang");
-  if (toggle) {
-    toggle.textContent = lang === "tr" ? "EN" : "TR";
-    toggle.setAttribute("aria-label", lang === "tr" ? "Switch interface to English" : "Arayüzü Türkçe yap");
+  const picker = document.getElementById("uiLang");
+  if (picker && !picker.options.length) {
+    for (const [code, name] of Object.entries(LANG_NAMES)) picker.append(new Option(name, code));
   }
+  if (picker) picker.value = lang;
 }
 
 export function setUiLang(next) {
+  if (!(next in LANG_NAMES) || next === lang) return;
   lang = next;
   try {
     localStorage.setItem(KEY, next);

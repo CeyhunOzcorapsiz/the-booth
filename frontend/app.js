@@ -3,7 +3,7 @@ import { Voice } from "./voice.js";
 import { initCompare } from "./compare.js";
 import { initVision } from "./vision.js";
 import { segmentCard, segmentFoot } from "./render.js";
-import { applyStatic, setUiLang, t, uiLang } from "./i18n.js";
+import { LANG_NAMES, applyStatic, setUiLang, t, uiLang } from "./i18n.js";
 import { STATIC, getJSON, openStream, postJSON } from "./api.js";
 
 const $ = (id) => document.getElementById(id);
@@ -19,6 +19,9 @@ const AGENTS = [
   ["guide", "Guide", "rules & pitch location"],
   ["recap-editor", "Recap editor", "half & full time"],
 ];
+const AGENT_NAMES = Object.fromEntries(AGENTS.map(([id, name]) => [id, name]));
+const KIND_NAMES = { pbp: "Play-by-play", color: "Analyst", stats: "Stats desk", explain: "Guide", spatial: "Guide",
+  recap: "Recap editor" };
 const BIG = new Set(["goal", "red_card", "penalty_awarded", "half_time", "full_time"]);
 const TOAST = { goal: "GOAL", shot: "SHOT", corner: "CORNER", foul: "FOUL", yellow_card: "YELLOW CARD",
   red_card: "RED CARD", penalty_awarded: "PENALTY", offside: "OFFSIDE", substitution: "SUBSTITUTION",
@@ -52,13 +55,15 @@ async function loadOptions() {
   const [options, health] = await Promise.all([getJSON("/api/options"), getJSON("/api/health")]);
   llm = health.llm;
   voice.useNeural(Boolean(health.speech?.enabled));
-  for (const [code, name] of Object.entries(options.languages)) {
+  for (const code of Object.keys(options.languages)) {
+    const name = LANG_NAMES[code] ?? options.languages[code];
     if (STATIC && !options.offline_languages.includes(code)) continue; // the static demo only has recorded languages
     const offline = options.offline_languages.includes(code);
     const label = offline || llm.configured ? name : `${name} ${t("(needs a model)")}`;
     $("lang").append(new Option(label, code));
   }
-  $("lang").value = uiLang() === "tr" ? "tr" : "en"; // a Turkish interface defaults to a Turkish broadcast
+  // the broadcast defaults to the interface language when it is on offer
+  $("lang").value = [...$("lang").options].some((o) => o.value === uiLang()) ? uiLang() : "en";
   setProvider(llm);
 }
 
@@ -116,6 +121,7 @@ function setVoice(on) {
 // ---------- broadcast ----------
 function goLive() {
   source?.close();
+  setUiLang(profile.lang); // a Japanese broadcast gets a Japanese interface; the picker can still change it
   resetView();
   const params = new URLSearchParams({ seed: profile.seed, lang: profile.lang, style: profile.style,
     accessible: profile.accessible, speed: profile.speed, start: profile.start });
@@ -161,7 +167,7 @@ function onHello(msg) {
   const p = msg.profile;
   const chips = [p.lang.toUpperCase(), t(STYLE_NAMES[p.style] ?? p.style), p.accessible ? t("audio-first") : null,
     p.club ? `${t("supports")} ${msg.match.teams[p.club].name}` : null,
-    p.follow ? `${t("following")} ${players[p.follow]?.name ?? p.follow}` : null, `seed ${msg.match.seed}`].filter(Boolean);
+    p.follow ? `${t("following")} ${players[p.follow]?.name ?? p.follow}` : null, `${t("seed")} ${msg.match.seed}`].filter(Boolean);
   $("profileChips").replaceChildren(...chips.map((c) => Object.assign(document.createElement("span"),
     { className: "chip", textContent: c })));
 }
@@ -328,20 +334,38 @@ function relabelCrew() {
 const STATE_CLASS = { start: "active", done: "ok", approved: "ok", planned: "ok", cache: "ok", template: "ok",
   rejected: "bad", fallback: "fallback", dropped: "fallback" };
 
+/** A trace line in the interface language: the backend logs a handful of fixed English patterns. */
+function traceText(detail) {
+  const rules = [
+    [/^(\d+) facts via (model tool calls|rule-based selection)$/, (m) => `${m[1]} ${t(`facts via ${m[2]}`)}`],
+    [/^(\d+) segment\(s\) reused from another viewer$/, (m) => `${m[1]} ${t("segments reused from another viewer")}`],
+    [/^drafting \(attempt (\d+)\)$/, (m) => `${t("drafting, attempt")} ${m[1]}`],
+    [/^(\d+)s behind live play$/, (m) => `${m[1]}s ${t("behind live play")}`],
+    [/^(?:template )?adapted for (.+)$/, (m) => `${t("adapted for")} ${m[1]}`],
+    [/^(\w+) → ([\w, ]+) \(importance ([\d.]+)\)$/, (m) => `${t(TOAST[m[1]] ?? (m[1] === "pass" ? "Pass" : m[1]))} → ${
+      m[2].split(", ").map((kind) => t(KIND_NAMES[kind] ?? kind)).join(", ")} (${t("importance")} ${m[3]})`],
+  ];
+  for (const [re, render] of rules) {
+    const m = detail.match(re);
+    if (m) return render(m);
+  }
+  return t(detail);
+}
+
 function onTrace(step) {
   traceSteps += 1;
   $("traceCount").textContent = `${traceSteps} ${t("steps")}`;
   const card = $(`agent-${step.agent}`);
   if (card) {
     card.className = `agent ${STATE_CLASS[step.status] ?? ""}`;
-    card.querySelector("small").textContent = step.detail;
+    card.querySelector("small").textContent = traceText(step.detail);
     if (step.status !== "start") {
       card.dataset.count = String(Number(card.dataset.count) + 1);
       card.querySelector(".count").textContent = card.dataset.count;
     }
   }
   const li = document.createElement("li");
-  for (const [cls, text] of [["job", step.job], ["who", step.agent], [`st st-${step.status}`, step.status + (step.ms ? ` ${step.ms}ms` : "")], ["what", step.detail]]) {
+  for (const [cls, text] of [["job", step.job], ["who", t(AGENT_NAMES[step.agent] ?? step.agent)], [`st st-${step.status}`, t(step.status) + (step.ms ? ` ${step.ms}ms` : "")], ["what", traceText(step.detail)]]) {
     li.append(Object.assign(document.createElement("span"), { className: cls, textContent: text }));
   }
   li.title = step.detail;
@@ -375,12 +399,15 @@ function staticAnswer(question) {
   const q = question.toLowerCase();
   const [h, a] = [s.teams.home, s.teams.away];
   const names = [meta.teams.home.name, meta.teams.away.name];
-  const pick = [["possession_pct", /possess|topa|ball|hakim/], ["shots", /shot|şut/], ["shots_on_target", /target|isabet/],
+  const labels = { possession_pct: "Possession %", shots: "Shots", shots_on_target: "On target", corners: "Corners",
+    pass_accuracy_pct: "Pass accuracy %", fouls: "Fouls" };
+  const named = (key) => t(labels[key]).replace(" %", "").toLowerCase(); // the stat in the interface language
+  const pick = [["possession_pct", /possess|topa|ball|hakim/], ["shots_on_target", /target|isabet/], ["shots", /shot|şut/],
     ["corners", /corner|korner/], ["pass_accuracy_pct", /pass|pas/], ["fouls", /foul|faul|card|kart/]]
-    .find(([, re]) => re.test(q));
+    .find(([key, re]) => re.test(q) || q.includes(named(key)));
   const key = pick?.[0] ?? null;
   const text = key
-    ? `${names[0]}: ${h[key]}, ${names[1]}: ${a[key]} (${key.replace("_pct", " %").replaceAll("_", " ")}).`
+    ? `${names[0]}: ${h[key]}, ${names[1]}: ${a[key]} (${t(labels[key])}).`
     : `${names[0]} ${s.score.home}-${s.score.away} ${names[1]}.`;
   const evidence = key
     ? [{ id: `F-home-${key}`, label: `${names[0]} ${key}`, value: String(h[key]) },
@@ -390,7 +417,7 @@ function staticAnswer(question) {
 }
 
 // ---------- interface language ----------
-$("uiLang").addEventListener("click", () => setUiLang(uiLang() === "tr" ? "en" : "tr"));
+$("uiLang").addEventListener("change", (e) => setUiLang(e.target.value));
 window.addEventListener("uilangchange", () => {
   setVoice(voice.enabled);
   setLive($("live").classList.contains("on"), liveLabel);

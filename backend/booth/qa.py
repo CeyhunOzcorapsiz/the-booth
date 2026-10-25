@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 
+from booth.agents import templates
 from booth.agents.fact_checker import NUMBER, RULE_NUMBERS, _as_float
+from booth.agents.phrases import LANGS, PHRASES, phrases
 from booth.facts import StatsDesk
 from booth.llm import LLMRuntime, LLMUnavailable
 from booth.profile import LANGUAGES
@@ -60,40 +62,51 @@ async def answer(
     return {**_offline(desk, question, lang), "minute": frozen.snapshot["minute"]}
 
 
+def _keywords(stat: str) -> str:
+    """The stat's name in every language, as a regex alternation for matching questions."""
+    return "|".join(
+        re.escape(PHRASES[lang]["qa"]["labels"][stat].split(" (")[0].rstrip(" %").lower()) for lang in LANGS
+    )
+
+
 def _offline(desk: StatsDesk, question: str, lang: str) -> dict:
     q = question.lower()
-    tr = lang == "tr"
+    book = phrases(lang if lang in LANGS else "en")["qa"]
+    labels = book["labels"]
     match = desk.match
     for team in match.teams.values():
         for p in team.players:
             if p.short_name.lower() in q or p.name.lower() in q:
                 stats = desk.player_stats(p.id)
                 parts = [
-                    f"{k.replace('_', ' ')} {v['value']}" for k, v in stats.items() if isinstance(v, dict)
+                    f"{labels.get(k, k.replace('_', ' '))} {v['value']}"
+                    for k, v in stats.items()
+                    if isinstance(v, dict)
                 ]
                 text = f"{p.name} (#{p.number}, {stats['team']}): " + ", ".join(parts) + "."
                 return {"text": text, "source": "template", "evidence": desk.sheet.to_list()}
-    if re.search(r"possess|topa sahip|hakimiyet|ball", q):
+    if re.search(rf"possess|topa sahip|hakimiyet|ball|{_keywords('possession_pct')}", q):
         data = desk.compare("possession_pct")
-    elif re.search(r"shot|şut|chance|pozisyon", q):
+    elif re.search(rf"shot|şut|chance|pozisyon|{_keywords('shots')}", q):
         data = desk.compare("shots")
-    elif re.search(r"corner|korner", q):
+    elif re.search(rf"corner|korner|{_keywords('corners')}", q):
         data = desk.compare("corners")
-    elif re.search(r"card|kart|foul|faul", q):
+    elif re.search(rf"card|kart|foul|faul|{_keywords('fouls')}|{_keywords('yellow_cards')}", q):
         data = desk.compare("fouls")
     elif re.search(r"momentum|on top|üstün|baskı", q):
         data = desk.momentum()
-        return {"text": data["summary"], "source": "template", "evidence": desk.sheet.to_list()}
+        text = templates.mood(data["summary"], match, lang if lang in LANGS else "en")
+        return {
+            "text": text[:1].upper() + text[1:] + ".",
+            "source": "template",
+            "evidence": desk.sheet.to_list(),
+        }
     else:
         data = desk.score()
         text = f"{data['home']} {data['home_goals']}-{data['away_goals']} {data['away']} ({data['minute']})."
         if not re.search(r"score|skor|kaç|result|sonuç", q):
-            text = (
-                "Bunu mevcut veriden yanıtlayamıyorum; skor: "
-                if tr
-                else "I can't answer that from the data I have. The score: "
-            ) + text
+            text = book["cant"] + text
         return {"text": text, "source": "template", "evidence": desk.sheet.to_list()}
-    stat = data.pop("stat").replace("_pct", " %").replace("_", " ")
-    text = ", ".join(f"{team}: {v['value']}" for team, v in data.items()) + f" ({stat})."
+    stat = data.pop("stat")
+    text = ", ".join(f"{team}: {v['value']}" for team, v in data.items()) + f" ({labels.get(stat, stat)})."
     return {"text": text, "source": "template", "evidence": desk.sheet.to_list()}

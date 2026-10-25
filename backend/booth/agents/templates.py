@@ -136,7 +136,7 @@ def spatial(event: MatchEvent, match: Match, lang: str) -> str:
     return phrases(lang)["spatial"].format(team=name, where=where)
 
 
-def _mood(momentum: str, match: Match, lang: str) -> str:
+def mood(momentum: str, match: Match, lang: str) -> str:
     """The momentum fact ("<team> on top" / "evenly balanced") in ``lang``."""
     color = phrases(lang)["color"]
     for team in match.teams.values():
@@ -185,7 +185,7 @@ def color(event: MatchEvent, match: Match, sheet: FactSheet, lang: str, storylin
     elif event.type == "shot" and on_target:
         parts.append(book["on_target"].format(team=name, on=on_target, s_on=plural(on_target)))
     if momentum and len(parts) < 2 and not stories:
-        parts.append(book["momentum"].format(mood=_mood(momentum, match, lang)))
+        parts.append(book["momentum"].format(mood=mood(momentum, match, lang)))
     if poss and len(parts) < 2 and not stories:
         parts.append(book["possession"].format(team=name, poss=poss))
     return " ".join(parts[:2])

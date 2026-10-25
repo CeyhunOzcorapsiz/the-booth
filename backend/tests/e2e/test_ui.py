@@ -122,19 +122,33 @@ def close_setup(page):
     playwright_api.expect(dialog).to_be_hidden()
 
 
-def test_interface_switches_to_turkish_and_remembers_it(page, base_url):
+def test_interface_language_picker_remembers_the_choice(page, base_url):
     page.goto(base_url)
     close_setup(page)
     assert page.locator(".control-room h2").inner_text() == "Control room"
-    page.click("#uiLang")
+    assert page.locator("#uiLang option").count() == 12
+    page.select_option("#uiLang", "tr")
     assert page.locator(".control-room h2").inner_text() == "Kontrol odası"
     assert page.locator("html").get_attribute("lang") == "tr"
     page.reload()
     close_setup(page)
     assert page.locator(".control-room h2").inner_text() == "Kontrol odası"
     assert page.locator("#goLive").inner_text() == "Yayına başla"
-    page.click("#uiLang")
+    page.select_option("#uiLang", "en")
     assert page.locator(".control-room h2").inner_text() == "Control room"
+
+
+def test_broadcast_language_switches_the_whole_interface(page, base_url):
+    page.goto(f"{base_url}/?live=1&seed=119&lang=ja&style=tactical&start=60&speed=90")
+    page.wait_for_selector("#feed .segment-text", timeout=15_000)
+    assert page.locator("html").get_attribute("lang") == "ja"
+    assert page.locator(".control-room h2").inner_text() == "コントロールルーム"
+    assert page.locator("#uiLang").input_value() == "ja"
+    assert "シュート" in page.locator("#statsBody").inner_text()
+    page.fill("#question", "シュートは？")
+    page.click("#askForm button")
+    page.wait_for_selector("#answer .evidence", timeout=10_000)
+    assert "シュート" in page.locator("#answer").inner_text()
 
 
 def test_overlays_metrics_and_favorite_club(page, base_url):

@@ -126,7 +126,7 @@ pip install -e ".[dev]"
 uvicorn booth.api:app --port 8000
 ```
 
-Open http://localhost:8000 (the interface is in English or Turkish, switch with the EN/TR button), build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
+Open http://localhost:8000 (the whole interface follows your broadcast language, in all 12 languages; the language picker in the top bar changes it on its own), build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
 
 Without any configuration the crew runs on deterministic templates in all 12 languages. To run the model-backed agents, copy `.env.example` to `.env` and fill in one provider. See [docs/FREE_SETUP.md](docs/FREE_SETUP.md) for the free options.
 

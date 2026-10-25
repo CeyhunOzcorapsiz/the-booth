@@ -24,30 +24,27 @@ def test_every_broadcast_language_has_a_phrasebook():
     assert set(LABELS) == set(LANGUAGES)
 
 
+def _flatten(tree: dict, prefix: tuple = ()) -> dict:
+    """{(section, key, ...): [variants]} for every phrase in a phrasebook."""
+    out = {}
+    for key, value in tree.items():
+        if isinstance(value, dict):
+            out.update(_flatten(value, (*prefix, key)))
+        else:
+            out[(*prefix, key)] = value if isinstance(value, list) else [value]
+    return out
+
+
 @pytest.mark.parametrize("lang", [lang for lang in LANGS if lang != "en"])
 def test_phrasebook_matches_english_keys_and_placeholders(lang):
-    reference = PHRASES["en"]
-    book = PHRASES[lang]
-    assert set(book) == set(reference), lang
-    for section, value in reference.items():
-        if isinstance(value, dict):
-            assert set(book[section]) == set(value), (lang, section)
-            for key, text in value.items():
-                options = text if isinstance(text, list) else [text]
-                theirs = book[section][key] if isinstance(book[section][key], list) else [book[section][key]]
-                expected = set().union(*(_fields(t) for t in options)) - OPTIONAL
-                for t in theirs:
-                    assert _fields(t) - OPTIONAL <= expected | {"team", "p", "t", "score"}, (
-                        lang,
-                        section,
-                        key,
-                        t,
-                    )
-                    if section == "pbp":
-                        continue  # play-by-play variants may drop a name
-                    assert expected <= _fields(t), (lang, section, key, t)
-        else:
-            assert _fields(book[section]) == _fields(value), (lang, section)
+    reference, book = _flatten(PHRASES["en"]), _flatten(PHRASES[lang])
+    assert set(book) == set(reference), set(book) ^ set(reference)
+    for path, options in reference.items():
+        expected = set().union(*(_fields(t) for t in options)) - OPTIONAL
+        for text in book[path]:
+            assert _fields(text) - OPTIONAL <= expected | {"team", "p", "t", "score"}, (lang, path, text)
+            if path[0] != "pbp":  # play-by-play variants may drop a name
+                assert expected <= _fields(text), (lang, path, text)
 
 
 def test_template_broadcast_is_verified_in_every_language():

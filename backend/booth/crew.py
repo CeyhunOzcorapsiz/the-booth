@@ -102,7 +102,7 @@ class Crew:
             st for st in job.state.snapshot.get("storylines", []) if st["event_id"] == job.event.id
         ]
         for story in new_stories:
-            trace("storyline", "done", f"{story['kind'].replace('_', ' ')}: {story['en']}", 0)
+            trace("storyline", "done", templates.story_text(story, profile.lang), 0)
 
         sheet, caption = FactSheet(), None
         if any(kind in ("color", "stats", "recap") for kind in job.kinds):
