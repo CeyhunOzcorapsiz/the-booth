@@ -21,12 +21,13 @@ from booth.agents import templates
 from booth.agents.base import SPEAKERS, Job, Segment, Timer
 from booth.agents.fact_checker import FactChecker
 from booth.agents.localizer import Localizer
-from booth.agents.stats_producer import StatsProducer, moment_context
+from booth.agents.stats_producer import StatsProducer
 from booth.agents.writers import Writers
 from booth.facts import FactSheet, StatsDesk
 from booth.llm import LLMRuntime, LLMUnavailable
 from booth.profile import ViewerProfile
 from booth.telemetry import tracer
+from booth.workflow import DraftContext, run_draft
 
 Trace = Callable[[str, str, str, int], None]
 WRITER_NAMES = {
@@ -130,8 +131,10 @@ class Crew:
         text, source, lang = None, "template", profile.lang
 
         if kind in ("pbp", "color", "recap") and self.use_model(job):
-            text = await self._model_draft(kind, job, profile, sheet, trace, notes)
-            source = "ai" if text else "template"
+            # writer ⇄ fact-checker → localizer, as a Microsoft Agent Framework workflow
+            context = DraftContext(kind, job, profile, sheet, trace, notes)
+            outcome = await run_draft(self.writers, self.checker, self.localizer, context)
+            text, source = (outcome.text, "ai") if outcome.text else (None, "template")
         elif kind == "stats" and caption:
             verdict = self.checker.check(caption, kind, job.event, job.state, sheet)
             trace(
@@ -141,16 +144,15 @@ class Crew:
                 0,
             )
             text, source = (caption, "ai") if verdict.approved else (None, "template")
-
-        if text is not None and profile.lang != "en":
-            timer = Timer()
-            try:
-                text = await self.localizer.translate(text, profile.lang)
-                trace("localizer", "done", f"adapted for {profile.language_name}", timer.ms)
-            except LLMUnavailable as exc:
-                trace("localizer", "fallback", str(exc), timer.ms)
-                notes.append(f"translation failed: {exc}")
-                text, source = None, "template"
+            if text is not None and profile.lang != "en":
+                timer = Timer()
+                try:
+                    text = await self.localizer.translate(text, profile.lang)
+                    trace("localizer", "done", f"adapted for {profile.language_name}", timer.ms)
+                except LLMUnavailable as exc:
+                    trace("localizer", "fallback", str(exc), timer.ms)
+                    notes.append(f"translation failed: {exc}")
+                    text, source = None, "template"
 
         if text is None:
             text, lang = await self._template(kind, job, profile, sheet, trace, notes)
@@ -170,43 +172,6 @@ class Crew:
             evidence=evidence,
             notes=notes,
         )
-
-    async def _model_draft(
-        self, kind: str, job: Job, profile: ViewerProfile, sheet: FactSheet, trace: Trace, notes: list[str]
-    ) -> str | None:
-        writer = WRITER_NAMES[kind]
-        feedback: list[str] | None = None
-        for attempt in (1, 2):
-            timer = Timer()
-            trace(writer, "start", f"drafting (attempt {attempt})", 0)
-            try:
-                draft = await self.writers.write_model(kind, job, profile, sheet, feedback)
-            except LLMUnavailable as exc:
-                trace(writer, "fallback", str(exc), timer.ms)
-                notes.append(str(exc))
-                return None
-            trace(writer, "done", draft[:90], timer.ms)
-            timer = Timer()
-            verdict = self.checker.check(draft, kind, job.event, job.state, sheet)
-            if verdict.approved and kind in ("color", "recap"):
-                verdict = await self.checker.review(
-                    draft,
-                    {
-                        "moment": moment_context(job),
-                        "facts": sheet.to_list(),
-                        "score": job.state.snapshot["score"],
-                    },
-                )
-            detail = "; ".join(verdict.reasons) or (
-                "numbers and names traced to data"
-                + (" + model claim review" if verdict.reviewed_by_model else "")
-            )
-            trace("fact-checker", "approved" if verdict.approved else "rejected", detail, timer.ms)
-            if verdict.approved:
-                return draft
-            feedback = verdict.reasons
-            notes.append(f"draft {attempt} rejected: {detail}")
-        return None
 
     async def _template(
         self, kind: str, job: Job, profile: ViewerProfile, sheet: FactSheet, trace: Trace, notes: list[str]

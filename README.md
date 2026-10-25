@@ -71,7 +71,7 @@ flowchart LR
 
 | Layer | Technology |
 |---|---|
-| Agents | **Microsoft Agent Framework** (Python) — `Agent`, function tools, OpenAI-compatible chat client |
+| Agents | **Microsoft Agent Framework** (Python): `Agent`s with function tools, and a `Workflow` (writer ⇄ fact-checker → localizer) for the hand-offs |
 | Models | **Microsoft Foundry** model deployment (e.g. `gpt-4.1-mini`), or GitHub Models for development |
 | Backend | FastAPI, Server-Sent Events |
 | Voice | **Azure AI Speech** neural voices (free F0 tier) proxied by the server, browser speech synthesis as fallback |
@@ -80,7 +80,7 @@ flowchart LR
 | Observability | **Azure Monitor / Application Insights** via OpenTelemetry: a span per director job, plus Agent Framework spans for agent runs, model calls and tool calls |
 | Dev | GitHub, GitHub Actions CI, GitHub Copilot |
 
-More detail: [architecture](docs/ARCHITECTURE.md) · [deploy to Azure](docs/DEPLOY.md) · [free setup](docs/FREE_SETUP.md) · [pitch](docs/PITCH.md) · [demo script](docs/DEMO.md).
+More detail: [architecture](docs/ARCHITECTURE.md) · [synthetic dataset](docs/DATASET.md) · [deploy to Azure](docs/DEPLOY.md) · [free setup](docs/FREE_SETUP.md) · [pitch](docs/PITCH.md) · [demo script](docs/DEMO.md).
 
 ## Run it
 

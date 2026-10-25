@@ -206,3 +206,24 @@ async def test_new_storyline_reaches_the_analyst_and_trace():
     assert "late winner" in color["text"].lower()
     assert any(e["id"].endswith("story-late_winner") for e in color["evidence"])
     assert any(t["agent"] == "storyline" for t in broadcast["trace"])
+
+
+async def test_draft_workflow_loops_back_to_the_writer_then_localizes():
+    from booth.agents.fact_checker import FactChecker
+    from booth.agents.localizer import Localizer
+    from booth.agents.writers import Writers
+    from booth.workflow import DraftContext, mermaid, run_draft
+
+    job = goal_job()
+    scorer = job.state.match.player(job.event.player).short_name
+    runtime = ScriptedRuntime(
+        {"pbp": ["A record 999th goal!", f"{scorer} scores!"], "localizer": [f"¡Gol de {scorer}!"]}
+    )
+    log, trace = collect_trace()
+    context = DraftContext("pbp", job, ViewerProfile("es", "hype"), FactSheet(), trace)
+    outcome = await run_draft(Writers(runtime), FactChecker(runtime), Localizer(runtime), context)
+    assert outcome.text == f"¡Gol de {scorer}!"
+    assert [s for a, s, _ in log if a == "fact-checker"] == ["rejected", "approved"]
+    assert ("localizer", "done") in [(a, s) for a, s, _ in log]
+    diagram = mermaid()
+    assert "fact_checker --> writer" in diagram and "fact_checker --> localizer" in diagram

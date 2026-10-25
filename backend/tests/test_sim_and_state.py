@@ -108,3 +108,18 @@ def test_on_pitch_lineups_follow_substitutions_and_red_cards():
             assert len(state.on_pitch[team]) == 11
             assert len(lineup) == 11 - reds[team]
             assert len(set(lineup)) == len(lineup)
+
+
+def test_dataset_export_writes_joinable_tables(tmp_path):
+    import csv
+
+    from booth.dataset import export
+
+    counts = export(119, 2, tmp_path)
+    assert counts["matches"] == 2 and counts["events"] > 1500 and counts["players"] == 64
+    matches = list(csv.DictReader(open(tmp_path / "matches.csv", encoding="utf-8")))
+    assert matches[0]["match_id"] == "M000119"
+    assert matches[0]["home_goals"] == "3" and "late_winner" in matches[0]["storylines"]
+    events = list(csv.DictReader(open(tmp_path / "events.csv", encoding="utf-8")))
+    assert {e["match_id"] for e in events} == {"M000119", "M000120"}
+    assert sum(1 for _ in open(tmp_path / "events.jsonl", encoding="utf-8")) == len(events)

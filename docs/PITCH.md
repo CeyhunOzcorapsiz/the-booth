@@ -14,7 +14,7 @@ The result is one match, many broadcasts: a hype call in English, a calm Turkish
 
 ## Microsoft and GitHub technology
 
-- **Microsoft Agent Framework**: every model-backed agent (stats producer, play-by-play, analyst, recap editor, fact-checker review, localizer, studio analyst) is an Agent Framework `Agent`; the stats desk is exposed as function tools; built-in OpenTelemetry instrumentation. The director, storyline tracker and guide are deliberately rule-based: fast, cheap and explainable on every event.
+- **Microsoft Agent Framework**: every model-backed agent (stats producer, play-by-play, analyst, recap editor, fact-checker review, localizer, studio analyst) is an Agent Framework `Agent`; the stats desk is exposed as function tools; the writer ⇄ fact-checker → localizer hand-off is an Agent Framework workflow with a typed reject-and-rewrite loop; built-in OpenTelemetry instrumentation. The director, storyline tracker and guide are deliberately rule-based: fast, cheap and explainable on every event.
 - **Microsoft Foundry**: `gpt-4.1-mini` deployment behind all model-backed agents.
 - **Azure Container Apps**: hosting, scale to zero.
 - **Azure Monitor / Application Insights**: a trace for every director job, agent run, model call and tool call.

@@ -27,6 +27,18 @@ Stats producer ──facts──▶ Writer ──draft──▶ Fact-checker ─
                     any failure ──▶ template for that segment (labelled)
 ```
 
+The writer ⇄ fact-checker → localizer loop is a **Microsoft Agent Framework workflow** (`booth/workflow.py`): three `Executor`s connected by typed messages (`DraftRequest`, `Draft`, `Approved`, `Outcome`). The fact-checker routes a rejected draft back to the writer with its reasons, or an approved one on to the localizer. Any executor can end the run with an empty `Outcome`, and the crew then airs the template. The graph, as drawn by Agent Framework's `WorkflowViz`:
+
+```mermaid
+flowchart TD
+  writer["writer (Start)"];
+  fact_checker["fact-checker"];
+  localizer["localizer"];
+  writer --> fact_checker;
+  fact_checker --> writer;
+  fact_checker --> localizer;
+```
+
 - **Stats producer** (`agents/stats_producer.py`) gives the model the `StatsDesk` methods as Agent Framework function tools: `score`, `team_stats`, `compare`, `player_stats`, `momentum`, `key_moments`. Each call registers `Fact`s with stable IDs on a `FactSheet`. If the model fails or fetches too little, a rule-based selection fills the sheet.
 - **Writers** (`agents/writers.py`) produce an English world-feed line. The prompt contains only the moment, the score, the clubs, a location description and (for the analyst and recap) the fact sheet.
 - **Fact-checker** (`agents/fact_checker.py`):

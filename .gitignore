@@ -20,3 +20,6 @@ Thumbs.db
 # Build output
 build/
 dist/
+
+# Generated datasets
+synthetic-data/
