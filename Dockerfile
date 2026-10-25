@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 BOOTH_FRONTEND_DIR=/app/fronten
 WORKDIR /app
 COPY backend/pyproject.toml backend/
 COPY backend/booth backend/booth
-RUN pip install --no-cache-dir ./backend
+RUN pip install --no-cache-dir "./backend[azure]"
 COPY frontend frontend
 RUN useradd --create-home booth
 USER booth

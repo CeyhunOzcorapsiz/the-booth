@@ -31,6 +31,8 @@ The Booth replays a synthetic match event-by-event and runs a **multi-agent crew
 
 The **control room** panel shows every hand-off live: what the director planned, which tools the stats producer called, which drafts the fact-checker rejected and why, and where the crew fell back.
 
+**Same moment, 3 shows** runs several viewer profiles over one event (say, the 90th-minute winner) and puts the broadcasts side by side, each with its own hand-off trace.
+
 ### Design principles
 
 - **Agents can't invent a number.** Numbers come from tool calls on a shared, frozen state. The fact-checker enforces it.
@@ -60,10 +62,11 @@ flowchart LR
 | Models | **Microsoft Foundry** model deployment (e.g. `gpt-4.1-mini`), or GitHub Models for development |
 | Backend | FastAPI, Server-Sent Events |
 | Frontend | Vanilla JS + SVG, browser speech synthesis (Azure AI Speech planned) |
-| Hosting | Docker image for **Azure Container Apps** |
+| Hosting | **Azure Container Apps**, image built by GitHub Actions and published to GitHub Container Registry |
+| Observability | **Azure Monitor / Application Insights** via OpenTelemetry: a span per director job, plus Agent Framework spans for agent runs, model calls and tool calls |
 | Dev | GitHub, GitHub Actions CI, GitHub Copilot |
 
-More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+More detail: [architecture](docs/ARCHITECTURE.md) · [deploy to Azure](docs/DEPLOY.md) · [free setup](docs/FREE_SETUP.md) · [pitch](docs/PITCH.md) · [demo script](docs/DEMO.md).
 
 ## Run it
 
@@ -77,9 +80,13 @@ pip install -e ".[dev]"
 uvicorn booth.api:app --port 8000
 ```
 
-Open http://localhost:8000, build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**.
+Open http://localhost:8000, build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
 
 Without any configuration the crew runs on deterministic templates (English and Turkish). To run the model-backed agents, copy `.env.example` to `.env` and fill in one provider. See [docs/FREE_SETUP.md](docs/FREE_SETUP.md) for the free options.
+
+### Azure
+
+`bash infra/deploy.sh` creates the Foundry model deployment, Application Insights and the Container App in one resource group. `--local-only` creates just the model and writes `.env`. See [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ### Docker
 
@@ -108,6 +115,8 @@ The tests include a scripted model that exercises the reject → rewrite hand-of
 | `GET /api/match/events?seed=42` | Full synthetic event log |
 | `GET /api/broadcast?seed=&lang=&style=&accessible=&follow=&speed=&start=` | Live broadcast as SSE: `hello`, `event`, `trace`, `segment`, `end` |
 | `POST /api/ask` | `{seed, minute, question, lang}`: answered from the stats desk at that minute |
+| `GET /api/moments?seed=` | Highlights worth comparing (goals, penalties, red cards, big saves) |
+| `POST /api/compare` | `{seed, event_id, profiles?}`: the same moment broadcast for up to 4 profiles, with traces |
 
 ## Synthetic data statement
 

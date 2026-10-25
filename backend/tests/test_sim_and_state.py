@@ -71,3 +71,10 @@ def test_stats_desk_registers_facts_and_exposes_tools():
     assert "F-home-shots" in desk.sheet.facts
     tools = desk.as_tools()
     assert {t.name for t in tools} >= {"score", "team_stats", "player_stats", "compare", "momentum"}
+
+
+def test_surnames_are_unique_within_a_match():
+    for seed in range(20):
+        match = generate_match(seed)
+        surnames = [p.short_name for t in match.teams.values() for p in t.players]
+        assert len(surnames) == len(set(surnames))

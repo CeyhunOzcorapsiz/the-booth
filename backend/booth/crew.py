@@ -26,6 +26,7 @@ from booth.agents.writers import Writers
 from booth.facts import FactSheet, StatsDesk
 from booth.llm import LLMRuntime, LLMUnavailable
 from booth.profile import ViewerProfile
+from booth.telemetry import tracer
 
 Trace = Callable[[str, str, str, int], None]
 WRITER_NAMES = {
@@ -70,6 +71,23 @@ class Crew:
         )
 
     async def produce(self, job: Job, profile: ViewerProfile, trace: Trace) -> list[Segment]:
+        """Run the hand-offs for one job. Each hand-off is also recorded on a ``booth.job`` span."""
+        attributes = {
+            "booth.job": job.id,
+            "booth.event": job.event.id,
+            "booth.event_type": job.event.type,
+            "booth.kinds": ",".join(job.kinds),
+            "booth.profile": profile.key(),
+        }
+        with tracer.start_as_current_span("booth.job", attributes=attributes) as span:
+
+            def traced(agent: str, status: str, detail: str, ms: int) -> None:
+                span.add_event(f"{agent}.{status}", {"detail": detail[:200], "ms": ms})
+                trace(agent, status, detail, ms)
+
+            return await self._produce(job, profile, traced)
+
+    async def _produce(self, job: Job, profile: ViewerProfile, trace: Trace) -> list[Segment]:
         cached = [self._segments.get_item(self._key(job, kind, profile)) for kind in job.kinds]
         if all(cached):
             trace("crew", "cache", f"{len(cached)} segment(s) reused from another viewer", 0)

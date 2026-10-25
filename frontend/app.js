@@ -1,5 +1,7 @@
 import { Pitch } from "./pitch.js";
 import { Voice } from "./voice.js";
+import { initCompare } from "./compare.js";
+import { segmentCard, segmentFoot } from "./render.js";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { home: "#c5f665", away: "#ed9e83" };
@@ -184,42 +186,9 @@ function toast(text, big) {
 }
 
 function onSegment(seg) {
-  const li = document.createElement("li");
-  const small = ["spatial", "explain", "stats"].includes(seg.kind);
-  li.className = `segment${seg.importance >= 0.9 ? " big" : ""}${small ? " small" : ""}`;
-  const head = document.createElement("div");
-  head.className = "segment-head";
-  head.append(Object.assign(document.createElement("span"), { className: `speaker ${seg.kind}`, textContent: seg.speaker }),
-    Object.assign(document.createElement("span"), { textContent: seg.minute }));
-  const text = Object.assign(document.createElement("div"), { className: "segment-text", textContent: seg.text });
-  li.append(head, text, segmentFoot(seg));
-  $("feed").prepend(li);
+  $("feed").prepend(segmentCard(seg, llm.model));
   while ($("feed").childElementCount > 120) $("feed").lastElementChild.remove();
   if (seg.kind !== "stats") voice.say(seg.text, seg.lang, seg.importance >= 0.9);
-}
-
-function segmentFoot(seg) {
-  const foot = document.createElement("div");
-  foot.className = "segment-foot";
-  if (seg.verified) foot.append(Object.assign(document.createElement("span"), { className: "verified", textContent: "✓ fact-checked" }));
-  const label = seg.source === "ai" ? `AI · ${llm.model ?? "model"}` : "template";
-  foot.append(Object.assign(document.createElement("span"), { className: `source ${seg.source}`, textContent: label }));
-  if (seg.evidence?.length) {
-    const button = Object.assign(document.createElement("button"), {
-      className: "evidence", type: "button", textContent: `${seg.evidence.length} source${seg.evidence.length > 1 ? "s" : ""}` });
-    button.setAttribute("aria-expanded", "false");
-    const list = document.createElement("ul");
-    list.className = "evidence-detail";
-    list.hidden = true;
-    list.append(...seg.evidence.map((f) => Object.assign(document.createElement("li"), { textContent: `${f.id} · ${f.label}: ${f.value}` })));
-    button.addEventListener("click", () => {
-      list.hidden = !list.hidden;
-      button.setAttribute("aria-expanded", String(!list.hidden));
-    });
-    foot.append(button, list);
-  }
-  for (const note of seg.notes ?? []) foot.append(Object.assign(document.createElement("span"), { className: "note", textContent: `⚠ ${note}` }));
-  return foot;
 }
 
 function addNote(message) {
@@ -281,7 +250,7 @@ $("askForm").addEventListener("submit", async (e) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const text = Object.assign(document.createElement("div"), { textContent: `${data.minute} · ${data.text}` });
-    answer.replaceChildren(text, segmentFoot({ ...data, verified: true, notes: [] }));
+    answer.replaceChildren(text, segmentFoot({ ...data, verified: true, notes: [] }, llm.model));
     voice.say(data.text, profile?.lang ?? "en", true);
   } catch (err) {
     answer.textContent = `Couldn't reach the booth (${err.message}).`;
@@ -291,5 +260,7 @@ $("askForm").addEventListener("submit", async (e) => {
 // ---------- boot ----------
 renderCrew();
 await loadOptions();
-await loadMatch(42);
+await loadMatch(Number($("seed").value) || 0);
+initCompare({ voice, seed: () => profile?.seed ?? (Number($("seed").value) || 0), model: () => llm.model,
+  languages: () => [...$("lang").options].map((o) => [o.value, o.textContent]) });
 $("setup").showModal();

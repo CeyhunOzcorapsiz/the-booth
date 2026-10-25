@@ -15,13 +15,17 @@
 <header class="topbar">
   <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="28" height="28"><span>the<b>booth</b></span></a>
   <div class="live" id="live"><i></i><span id="liveLabel">OFF AIR</span></div>
+  <nav class="views" aria-label="Views">
+    <button data-view="live" aria-current="true">Live</button>
+    <button data-view="compare" aria-current="false">Same moment, 3 shows</button>
+  </nav>
   <div class="top-actions">
     <span class="badge" id="providerBadge" title="Model provider">OFFLINE</span>
     <button class="ghost-button" id="openSetup">Your broadcast ⚙</button>
   </div>
 </header>
 
-<main class="layout">
+<main class="layout" id="liveView">
   <section class="panel stage" aria-label="Match">
     <div class="scoreboard">
       <div class="team home"><span class="crest" id="homeCrest">N</span><span class="team-name" id="homeName">Home</span></div>
@@ -78,6 +82,20 @@
     <div class="answer" id="answer"></div>
   </section>
 </main>
+<main class="compare" id="compareView" hidden>
+  <div class="panel compare-bar">
+    <div><h2>Same moment, three shows</h2><p class="sub">One event from the match. Each viewer gets their own crew, and every line is fact-checked.</p></div>
+    <div class="compare-actions">
+      <label class="sr-only" for="compareMoment">Moment</label>
+      <select id="compareMoment"></select>
+      <span class="badge muted" id="compareSeed"></span>
+      <span class="badge" id="compareScore"></span>
+      <button class="primary" id="compareRun">Run the crews</button>
+      <button class="ghost-button" id="comparePlay">▶ Hear them</button>
+    </div>
+  </div>
+  <div class="compare-columns" id="compareColumns"></div>
+</main>
 <footer>All clubs, players and events are synthetic and generated from a seed. No real match data is used.</footer>
 
 <dialog id="setup">
@@ -94,7 +112,7 @@
     <label class="check"><input type="checkbox" id="accessible"><span><b>Audio-first mode</b>For blind and low-vision fans: describes where the ball is and reads everything aloud.</span></label>
     <label>Follow a player<select id="follow"><option value="">Nobody in particular</option></select></label>
     <div class="row">
-      <label>Match seed<input id="seed" type="number" min="0" value="42"></label>
+      <label>Match seed<input id="seed" type="number" min="0" value="119"></label>
       <label>Start at minute<input id="start" type="number" min="0" max="90" value="0"></label>
       <label>Speed<select id="speed"><option value="10">10×</option><option value="20" selected>20×</option><option value="40">40×</option><option value="90">90×</option></select></label>
     </div>
