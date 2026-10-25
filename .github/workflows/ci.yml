@@ -21,6 +21,11 @@ jobs:
       - run: ruff check booth tests
       - run: ruff format --check booth tests
       - run: pytest -q --ignore=tests/e2e
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck -S style infra/deploy.sh
   e2e:
     # The real UI in a real browser against a real server.
     needs: test
@@ -54,7 +59,28 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Build image for the smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: the-booth:smoke
+          cache-from: type=gha
+      - name: Smoke test the container
+        run: |
+          docker run -d --name booth -p 8000:8000 the-booth:smoke
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/api/health > health.json; then break; fi
+            sleep 1
+          done
+          cat health.json
+          grep -q '"ok":true' health.json
+          curl -fsS http://localhost:8000/ | grep -q "<title>The Booth</title>"
+          curl -fsS "http://localhost:8000/api/overlays?seed=119" | grep -q '"stat_card"'
+          curl -fsS -N --max-time 20 "http://localhost:8000/api/broadcast?seed=119&speed=600&start=89" | grep -m1 -q "event: segment"
+          docker logs booth
+      - name: Publish image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
