@@ -108,3 +108,25 @@ def test_broadcast_stream_carries_overlay_cues():
                 if message["type"] == "end":
                     break
     assert "overlay" in types
+
+
+def test_static_demo_build(tmp_path):
+    import asyncio
+
+    from booth import static_site
+
+    out = tmp_path / "site"
+    summary = asyncio.run(static_site.build(out))
+    assert summary["profiles"] == len(static_site.PROFILES) and summary["size_mb"] < 15
+    index = (out / "index.html").read_text(encoding="utf-8")
+    assert 'data-static="1"' in index and "/static/" not in index
+    manifest = json.loads((out / "data" / "manifest.json").read_text(encoding="utf-8"))
+    for profile in manifest["profiles"]:
+        name = (
+            f"{profile['lang']}-{profile['style']}-{int(profile['accessible'])}-{profile['club'] or 'none'}"
+        )
+        recording = json.loads((out / "data" / "broadcast" / f"{name}.json").read_text(encoding="utf-8"))
+        assert recording["hello"] and any(m["type"] == "segment" for m in recording["messages"])
+    assert len(list((out / "data" / "compare").iterdir())) == len(manifest["highlights"]) * len(
+        manifest["profiles"]
+    )

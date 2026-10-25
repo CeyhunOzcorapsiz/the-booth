@@ -3,6 +3,7 @@ import { Voice } from "./voice.js";
 import { initCompare } from "./compare.js";
 import { segmentCard, segmentFoot } from "./render.js";
 import { applyStatic, setUiLang, t, uiLang } from "./i18n.js";
+import { STATIC, getJSON, openStream, postJSON } from "./api.js";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { home: "#c5f665", away: "#ed9e83" };
@@ -46,11 +47,11 @@ const STYLE_NAMES = { hype: "Hype", calm: "Calm", tactical: "Tactical", beginner
 
 // ---------- setup ----------
 async function loadOptions() {
-  const [options, health] = await Promise.all([fetch("/api/options").then((r) => r.json()),
-    fetch("/api/health").then((r) => r.json())]);
+  const [options, health] = await Promise.all([getJSON("/api/options"), getJSON("/api/health")]);
   llm = health.llm;
   voice.useNeural(Boolean(health.speech?.enabled));
   for (const [code, name] of Object.entries(options.languages)) {
+    if (STATIC && !options.offline_languages.includes(code)) continue; // the static demo only has recorded languages
     const offline = options.offline_languages.includes(code);
     const label = offline || llm.configured ? name : `${name} ${t("(needs a model)")}`;
     $("lang").append(new Option(label, code));
@@ -60,7 +61,7 @@ async function loadOptions() {
 }
 
 async function loadMatch(seed) {
-  meta = await fetch(`/api/match?seed=${seed}`).then((r) => r.json());
+  meta = await getJSON(`/api/match?seed=${seed}`);
   players = {};
   const follow = $("follow");
   follow.replaceChildren(new Option(t("Nobody in particular"), ""));
@@ -118,7 +119,7 @@ function goLive() {
     accessible: profile.accessible, speed: profile.speed, start: profile.start });
   if (profile.follow) params.set("follow", profile.follow);
   if (profile.club) params.set("club", profile.club);
-  source = new EventSource(`/api/broadcast?${params}`);
+  source = openStream(params);
   source.addEventListener("hello", (e) => onHello(JSON.parse(e.data)));
   source.addEventListener("event", (e) => onEvent(JSON.parse(e.data)));
   source.addEventListener("segment", (e) => onSegment(JSON.parse(e.data)));
@@ -353,11 +354,9 @@ $("askForm").addEventListener("submit", async (e) => {
   const answer = $("answer");
   answer.textContent = t("Checking the stats desk…");
   try {
-    const res = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seed: profile?.seed ?? Number($("seed").value) ?? 42, minute: currentMinute, period: currentPeriod,
-        question, lang: profile?.lang ?? "en" }) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const data = STATIC ? staticAnswer(question)
+      : await postJSON("/api/ask", { seed: profile?.seed ?? (Number($("seed").value) || 42), minute: currentMinute,
+        period: currentPeriod, question, lang: profile?.lang ?? "en" });
     const text = Object.assign(document.createElement("div"), { textContent: `${data.minute} · ${data.text}` });
     answer.replaceChildren(text, segmentFoot({ ...data, verified: true, notes: [] }, llm.model));
     voice.say(data.text, profile?.lang ?? "en", true);
@@ -365,6 +364,27 @@ $("askForm").addEventListener("submit", async (e) => {
     answer.textContent = `${t("Couldn't reach the booth")} (${err.message}).`;
   }
 });
+
+// In the static demo there is no server, so questions are answered from the shared state the page already has.
+function staticAnswer(question) {
+  const s = lastState;
+  if (!s) return { text: t("Start the broadcast first."), source: "template", evidence: [], minute: "0'" };
+  const q = question.toLowerCase();
+  const [h, a] = [s.teams.home, s.teams.away];
+  const names = [meta.teams.home.name, meta.teams.away.name];
+  const pick = [["possession_pct", /possess|topa|ball|hakim/], ["shots", /shot|şut/], ["shots_on_target", /target|isabet/],
+    ["corners", /corner|korner/], ["pass_accuracy_pct", /pass|pas/], ["fouls", /foul|faul|card|kart/]]
+    .find(([, re]) => re.test(q));
+  const key = pick?.[0] ?? null;
+  const text = key
+    ? `${names[0]}: ${h[key]}, ${names[1]}: ${a[key]} (${key.replace("_pct", " %").replaceAll("_", " ")}).`
+    : `${names[0]} ${s.score.home}-${s.score.away} ${names[1]}.`;
+  const evidence = key
+    ? [{ id: `F-home-${key}`, label: `${names[0]} ${key}`, value: String(h[key]) },
+      { id: `F-away-${key}`, label: `${names[1]} ${key}`, value: String(a[key]) }]
+    : [{ id: "F-score", label: "Score", value: `${s.score.home}-${s.score.away}` }];
+  return { text, source: "template", evidence, minute: s.minute };
+}
 
 // ---------- interface language ----------
 $("uiLang").addEventListener("click", () => setUiLang(uiLang() === "tr" ? "en" : "tr"));
@@ -379,6 +399,10 @@ window.addEventListener("uilangchange", () => {
 });
 
 // ---------- boot ----------
+if (STATIC) {
+  $("seed").disabled = true;
+  $("staticNote").hidden = false;
+}
 applyStatic();
 renderCrew();
 await loadOptions();

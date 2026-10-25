@@ -61,6 +61,12 @@ def page(browser):
     page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
     yield page
     context.close()
+    # Navigating away mid-broadcast resets the open event stream (and fonts may drop); that's the network,
+    # not the app. JavaScript errors and any other console error still fail the test.
+    transient = ("net::ERR_CONNECTION_RESET", "net::ERR_ABORTED", "net::ERR_NETWORK_CHANGED")
+    errors = [
+        e for e in errors if not (e.startswith("Failed to load resource") and any(t in e for t in transient))
+    ]
     assert not errors, errors
 
 

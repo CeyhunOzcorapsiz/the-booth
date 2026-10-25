@@ -24,3 +24,6 @@ dist/
 
 # Generated datasets
 synthetic-data/
+
+# Static demo build
+_site/

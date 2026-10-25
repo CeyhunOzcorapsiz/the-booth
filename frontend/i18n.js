@@ -90,6 +90,9 @@ const TR = {
   "Ask": "Sor",
   "Checking the stats desk…": "İstatistik masasına bakılıyor…",
   "Couldn't reach the booth": "Stüdyoya ulaşılamadı",
+  "Start the broadcast first.": "Önce yayını başlat.",
+  "Static demo: pre-recorded broadcasts of match 119 on GitHub Pages, without a server or model. Run the full app locally or on Azure: see the README.":
+    "Statik demo: 119 numaralı maçın önceden kaydedilmiş yayınları, sunucu ve model olmadan GitHub Pages'te. Uygulamanın tamamı için README'ye bak.",
   // compare
   "Same moment, three shows": "Aynı an, üç yayın",
   "One event from the match. Each viewer gets their own crew, and every line is fact-checked.":

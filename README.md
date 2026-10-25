@@ -4,6 +4,8 @@
 
 Built for the Microsoft × Premier League **Inside the Game** developer hackathon. All clubs, players and events are synthetic and generated from a seed. No real match data is used.
 
+**Try it: https://ceyhunozcorapsiz.github.io/the-booth/** (static demo: pre-recorded broadcasts of match 119 for 12 viewer profiles, no server or model needed). Direct links: [audio-first in Turkish](https://ceyhunozcorapsiz.github.io/the-booth/?live=1&lang=tr&style=beginner&accessible=1&start=76) · [same moment, three shows](https://ceyhunozcorapsiz.github.io/the-booth/?view=compare).
+
 > Status: working prototype (v0.1). Runs fully offline with deterministic templates, and switches to live model-backed agents when a Microsoft Foundry (or GitHub Models) endpoint is configured.
 
 ![Live broadcast: pitch, storyline and a fact-checked feed](docs/img/live.png)
@@ -123,6 +125,15 @@ uvicorn booth.api:app --port 8000
 Open http://localhost:8000 (the interface is in English or Turkish, switch with the EN/TR button), build your broadcast (language, style, audio-first mode, a player to follow) and press **Go live**. Seed 119 is a good demo match: Ember lead 2–0 after an hour, Northstar win 3–2 with goals at 78', 82' and 90'.
 
 Without any configuration the crew runs on deterministic templates (English and Turkish). To run the model-backed agents, copy `.env.example` to `.env` and fill in one provider. See [docs/FREE_SETUP.md](docs/FREE_SETUP.md) for the free options.
+
+### Static demo (GitHub Pages)
+
+```bash
+cd backend
+python -m booth.static_site --out ../_site
+```
+
+Records the demo match for 12 viewer profiles with the offline crew and writes a server-less site; the `Static demo` workflow publishes it to GitHub Pages on every push to `main`. The static demo answers questions from the state already in the page and supports English and Turkish broadcasts; the full app (any seed, any profile, model-backed agents, 12 languages) needs the server.
 
 ### Azure
 

@@ -1,5 +1,6 @@
 // "Same moment, different shows": one event, several viewer profiles, side by side.
 import { translate, t } from "./i18n.js";
+import { getJSON, postJSON } from "./api.js";
 import { make, segmentCard } from "./render.js";
 
 const $ = (id) => document.getElementById(id);
@@ -32,7 +33,7 @@ export function initCompare({ voice, seed, model, languages }) {
   async function loadMoments() {
     if (loadedSeed === seed()) return;
     loadedSeed = seed();
-    const list = await fetch(`/api/moments?seed=${loadedSeed}`).then((r) => r.json());
+    const list = await getJSON(`/api/moments?seed=${loadedSeed}`);
     const select = $("compareMoment");
     select.replaceChildren(...list.map((m) => new Option(m.label, m.event_id)));
     $("compareSeed").textContent = `seed ${loadedSeed}`;
@@ -45,13 +46,7 @@ export function initCompare({ voice, seed, model, languages }) {
     if (!eventId) return;
     $("compareRun").disabled = true;
     try {
-      const res = await fetch("/api/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seed: seed(), event_id: eventId, profiles: columns.map((c) => c.profile()) }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await postJSON("/api/compare", { seed: seed(), event_id: eventId, profiles: columns.map((c) => c.profile()) });
       const s = data.state;
       $("compareScore").textContent = `${s.minute} · ${s.score.home}–${s.score.away}`;
       lastRun = data;
