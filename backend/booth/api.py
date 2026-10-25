@@ -136,6 +136,7 @@ async def broadcast(
 class Question(BaseModel):
     seed: int = Field(42, ge=0, le=2**32 - 1)
     minute: float = Field(..., ge=0, le=100)
+    period: int | None = Field(None, ge=1, le=2)
     question: str = Field(..., min_length=1, max_length=400)
     lang: str = "en"
 
@@ -145,7 +146,7 @@ async def ask(body: Question, request: Request) -> dict:
     throttle(request)
     if body.lang not in LANGUAGES:
         raise HTTPException(400, "Unsupported language.")
-    return await qa.answer(match_for(body.seed), body.minute, body.question, body.lang, runtime)
+    return await qa.answer(match_for(body.seed), body.minute, body.question, body.lang, runtime, body.period)
 
 
 class ProfileIn(BaseModel):

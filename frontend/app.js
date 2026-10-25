@@ -30,6 +30,7 @@ let source = null;
 let players = {};
 let meta = null;
 let currentMinute = 0;
+let currentPeriod = 1;
 let profile = null;
 let traceSteps = 0;
 let llm = { provider: "offline" };
@@ -150,6 +151,7 @@ function onHello(msg) {
 
 function onEvent({ event, state }) {
   currentMinute = event.clock / 60;
+  currentPeriod = event.period;
   pitch.show(event, players, state);
   renderState(state);
   if (TOAST[event.type]) toast(TOAST[event.type] + (event.type === "shot" ? ` · ${event.outcome.replace("_", " ")}` : ""),
@@ -270,7 +272,7 @@ $("askForm").addEventListener("submit", async (e) => {
   answer.textContent = "Checking the stats desk…";
   try {
     const res = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seed: profile?.seed ?? Number($("seed").value) ?? 42, minute: currentMinute,
+      body: JSON.stringify({ seed: profile?.seed ?? Number($("seed").value) ?? 42, minute: currentMinute, period: currentPeriod,
         question, lang: profile?.lang ?? "en" }) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();

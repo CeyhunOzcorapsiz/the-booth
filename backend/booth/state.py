@@ -25,6 +25,20 @@ KEY_MOMENT_TYPES = {
 }
 
 
+def match_position(minute: float, period: int | None = None) -> tuple[int, float]:
+    """Sortable (period, clock) for a broadcast minute.
+
+    The clock is continuous within a half but the second half restarts at 45:00, so a minute between 45 and
+    the end of first-half stoppage time is ambiguous. Without an explicit ``period``, minutes above 45 are
+    read as second half (46' means the 46th minute, not 45+1').
+    """
+    if period is None:
+        period = 2 if minute > 45 else 1
+    if period not in (1, 2):
+        raise ValueError("period must be 1 or 2")
+    return period, max(0.0, minute) * 60
+
+
 @dataclass(frozen=True)
 class FrozenState:
     match: Match

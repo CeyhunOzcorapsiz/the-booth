@@ -227,3 +227,45 @@ async def test_draft_workflow_loops_back_to_the_writer_then_localizes():
     assert ("localizer", "done") in [(a, s) for a, s, _ in log]
     diagram = mermaid()
     assert "fact_checker --> writer" in diagram and "fact_checker --> localizer" in diagram
+
+
+def test_second_half_minutes_are_not_confused_with_first_half_stoppage():
+    from booth.qa import state_at
+
+    match = generate_match(119)
+    assert state_at(match, 47).last_event.period == 2
+    first_half = state_at(match, 45.9, period=1).last_event
+    assert first_half.period == 1 and first_half.clock <= 45.9 * 60
+
+
+async def test_broadcast_started_at_46_keeps_the_start_of_the_second_half():
+    show = Broadcast(
+        generate_match(119), ViewerProfile(), Crew(None), speed=1e9, max_gap_s=0, start_minute=46
+    )
+    first = None
+    async for message in show.stream():
+        if message["type"] == "event":
+            first = message["event"]
+            break
+    assert first["period"] == 2 and 46 * 60 <= first["clock"] < 47 * 60
+
+
+async def test_template_fallbacks_are_not_cached_while_a_model_is_configured():
+    runtime = ScriptedRuntime({})  # every model call fails
+    crew = Crew(runtime)
+    job = goal_job()
+    _, trace = collect_trace()
+    await crew.produce(job, ViewerProfile("en", "hype"), trace)
+    first = runtime.calls_by_agent["pbp"]
+    await crew.produce(job, ViewerProfile("en", "hype"), trace)
+    assert first == 1 and runtime.calls_by_agent["pbp"] == 2  # the model is tried again
+
+
+async def test_segments_that_fail_the_check_are_not_marked_verified(monkeypatch):
+    from booth.agents.fact_checker import Verdict
+
+    crew = Crew(None)
+    monkeypatch.setattr(crew.checker, "check", lambda *a, **k: Verdict(False, ["forced"]))
+    _, trace = collect_trace()
+    segments = await crew.produce(goal_job(), ViewerProfile("en", "calm"), trace)
+    assert segments and not any(s.verified for s in segments)

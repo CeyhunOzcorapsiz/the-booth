@@ -18,7 +18,7 @@ from booth.agents.director import Director
 from booth.crew import Crew
 from booth.profile import ViewerProfile
 from booth.sim.match import Match
-from booth.state import MatchState
+from booth.state import MatchState, match_position
 
 log = logging.getLogger("booth.orchestrator")
 STALE_AFTER_S = 30.0
@@ -43,7 +43,7 @@ class Broadcast:
         self.profile = profile
         self.crew = crew
         self.speed = speed
-        self.start_clock = max(0.0, start_minute) * 60
+        self.start = match_position(start_minute) if start_minute > 0 else (1, 0.0)
         self.max_gap_s = max_gap_s
         self.drop_stale = drop_stale
         self.state = MatchState(match)
@@ -61,8 +61,8 @@ class Broadcast:
         async def feed() -> None:
             previous = None
             for event in self.match.events:
-                live = event.clock >= self.start_clock
-                if live and previous is not None and previous.clock >= self.start_clock:
+                live = (event.period, event.clock) >= self.start
+                if live and previous is not None and (previous.period, previous.clock) >= self.start:
                     gap = event.clock - previous.clock if event.period == previous.period else 3.0
                     await asyncio.sleep(min(max(gap, 0.0) / self.speed, self.max_gap_s))
                 self.state.apply(event)

@@ -34,6 +34,7 @@ server = MCPServer(
     title="The Booth: synthetic football stats desk",
     instructions=(
         "All matches are synthetic and generated from a seed (fictional clubs and players). "
+        "Minutes above 45 refer to the second half. "
         "Use `highlights` to find moments, the stats tools for numbers at any minute, and `broadcast_moment` "
         "to have the fact-checked crew commentate a moment for a given language and style."
     ),
@@ -47,6 +48,7 @@ def _match(seed: int) -> Match:
 
 
 def _desk(seed: int, minute: float) -> StatsDesk:
+    # Minutes above 45 are read as second half; pass e.g. 45.9 for first-half stoppage time.
     return StatsDesk(qa.state_at(_match(seed), minute).freeze())
 
 

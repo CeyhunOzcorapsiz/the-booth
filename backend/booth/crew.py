@@ -64,6 +64,10 @@ class Crew:
         self.localizer = Localizer(runtime)
         self._segments = _LRU()  # (seed, event, kind, profile) -> Segment, shared by every viewer
 
+    @property
+    def _model_configured(self) -> bool:
+        return self.runtime is not None and self.runtime.config.enabled
+
     def use_model(self, job: Job) -> bool:
         return (
             self.runtime is not None
@@ -116,7 +120,10 @@ class Crew:
         for kind in job.kinds:
             segment = await self._segment(kind, job, profile, sheet, caption, trace)
             if segment and segment.text:
-                self._segments.put(self._key(job, kind, profile), segment)
+                if segment.source == "ai" or not self._model_configured:
+                    # Template fallbacks are not cached while a model is configured, so a provider that
+                    # recovers is used again instead of serving the fallback to everyone.
+                    self._segments.put(self._key(job, kind, profile), segment)
                 segments.append(segment)
         return segments
 
@@ -128,7 +135,7 @@ class Crew:
         self, kind: str, job: Job, profile: ViewerProfile, sheet: FactSheet, caption: str | None, trace: Trace
     ) -> Segment | None:
         notes: list[str] = []
-        text, source, lang = None, "template", profile.lang
+        text, source, lang, verified = None, "template", profile.lang, True
 
         if kind in ("pbp", "color", "recap") and self.use_model(job):
             # writer ⇄ fact-checker → localizer, as a Microsoft Agent Framework workflow
@@ -155,7 +162,7 @@ class Crew:
                     text, source = None, "template"
 
         if text is None:
-            text, lang = await self._template(kind, job, profile, sheet, trace, notes)
+            text, lang, verified = await self._template(kind, job, profile, sheet, trace, notes)
 
         evidence = sheet.to_list() if kind in ("color", "stats", "recap") else [self._event_evidence(job)]
         return Segment(
@@ -165,7 +172,7 @@ class Crew:
             text=text,
             lang=lang,
             source=source,
-            verified=True,
+            verified=verified,
             event_id=job.event.id,
             minute=job.event.display_minute,
             importance=job.importance,
@@ -175,7 +182,7 @@ class Crew:
 
     async def _template(
         self, kind: str, job: Job, profile: ViewerProfile, sheet: FactSheet, trace: Trace, notes: list[str]
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, bool]:
         if kind in ("color", "recap", "stats"):
             StatsProducer.default_selection(StatsDesk(job.state, sheet), job)
         native = profile.lang in templates.SUPPORTED
@@ -200,7 +207,7 @@ class Crew:
             "; ".join(verdict.reasons) or "template numbers and names traced to data",
             0,
         )
-        return text, lang
+        return text, lang, verdict.approved
 
     @staticmethod
     def _event_evidence(job: Job) -> dict:
