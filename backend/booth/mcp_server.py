@@ -19,7 +19,7 @@ from functools import lru_cache
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-from booth import moment, qa
+from booth import moment, overlays, qa
 from booth.crew import Crew
 from booth.facts import StatsDesk
 from booth.llm import LLMRuntime
@@ -106,6 +106,13 @@ def events(seed: int = 119, from_minute: float = 0, to_minute: float = 95, types
         if from_minute * 60 <= e.clock <= to_minute * 60 and (not wanted or e.type in wanted)
     ]
     return {"count": len(rows), "truncated": len(rows) > MAX_EVENTS, "events": rows[:MAX_EVENTS]}
+
+
+@server.tool(annotations=READ_ONLY)
+def overlay_cues(seed: int = 119, lang: str = "en", from_minute: float = 0, to_minute: float = 130) -> dict:
+    """Timed, machine-readable overlay cues for broadcast graphics (lower thirds, stat cards, player tags)."""
+    cues = overlays.build_cues(_match(seed), lang, from_minute, to_minute)
+    return {"schema_version": overlays.SCHEMA_VERSION, "count": len(cues), "cues": cues[:MAX_EVENTS]}
 
 
 @server.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))

@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 
 from booth.agents.director import Director
 from booth.crew import Crew
+from booth.overlays import OverlayBuilder
 from booth.profile import ViewerProfile
 from booth.sim.match import Match
 from booth.state import MatchState, match_position
@@ -52,6 +53,7 @@ class Broadcast:
         out: asyncio.Queue[dict] = asyncio.Queue()
         jobs: asyncio.Queue = asyncio.Queue()
         director = Director(self.profile)
+        overlays = OverlayBuilder(self.match, self.profile.lang)
 
         def trace(job_id: str, agent: str, status: str, detail: str, ms: int) -> None:
             out.put_nowait(
@@ -70,6 +72,8 @@ class Broadcast:
                 if not live:
                     continue
                 await out.put({"type": "event", "event": event.to_dict(), "state": self.state.snapshot()})
+                for cue in overlays.observe(event, self.state):
+                    await out.put({"type": "overlay", "cue": cue})
                 job = director.plan(event, self.state)
                 if job:
                     trace(

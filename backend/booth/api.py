@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from booth import __version__, moment, qa, telemetry
+from booth import __version__, moment, overlays, qa, telemetry
 from booth.agents import templates
 from booth.crew import Crew
 from booth.limits import LimitConfig, RateLimiter, StreamSlots, client_id
@@ -164,6 +164,24 @@ class CompareRequest(BaseModel):
     seed: int = Field(42, ge=0, le=2**32 - 1)
     event_id: str = Field(..., pattern=r"^E\d{4}$")
     profiles: list[ProfileIn] | None = Field(None, max_length=moment.MAX_PROFILES)
+
+
+@app.get("/api/overlays")
+def overlay_cues(
+    request: Request,
+    seed: Seed = 42,
+    lang: str = "en",
+    from_minute: Annotated[float, Query(ge=0, le=130)] = 0,
+    to_minute: Annotated[float, Query(ge=0, le=130)] = 130,
+) -> dict:
+    """Timed overlay cues (score bug, lower thirds, stat cards, player tags, storyline banners) for graphics."""
+    throttle(request, 0.5)
+    return {
+        "schema_version": overlays.SCHEMA_VERSION,
+        "seed": seed,
+        "lang": lang if lang in overlays.LABELS else "en",
+        "cues": overlays.build_cues(match_for(seed), lang, from_minute, to_minute),
+    }
 
 
 @app.get("/api/moments")

@@ -81,3 +81,30 @@ async def test_mcp_server_exposes_the_stats_desk_and_crew():
     show = await server.call_tool("broadcast_moment", {"seed": 119, "event_id": winner["event_id"]})
     body = _json.loads(show.content[0].text)
     assert body["segments"] and body["trace"]
+
+
+def test_overlay_cues_are_timed_and_traceable():
+    body = client.get("/api/overlays?seed=119&lang=tr").json()
+    assert body["schema_version"] == "1.0" and body["lang"] == "tr"
+    cues = body["cues"]
+    kinds = {c["type"] for c in cues}
+    assert {"score_bug", "lower_third", "stat_card", "player_tag", "storyline_banner"} <= kinds
+    keys = [(c["at"]["period"], c["at"]["clock_s"]) for c in cues]
+    assert keys == sorted(keys)
+    assert all(c["evidence"] and c["duration_s"] >= 0 for c in cues)
+    goals = [c for c in cues if c["type"] == "lower_third" and c["payload"]["title"] == "GOL"]
+    assert len(goals) == 5
+    window = client.get("/api/overlays?seed=119&from_minute=80&to_minute=95").json()["cues"]
+    assert window and all(c["at"]["clock_s"] >= 80 * 60 for c in window)
+
+
+def test_broadcast_stream_carries_overlay_cues():
+    types = set()
+    with client.stream("GET", "/api/broadcast?seed=119&speed=600&start=88") as response:
+        for line in response.iter_lines():
+            if line.startswith("data: "):
+                message = json.loads(line[6:])
+                types.add(message["type"])
+                if message["type"] == "end":
+                    break
+    assert "overlay" in types

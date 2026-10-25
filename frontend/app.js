@@ -123,6 +123,7 @@ function goLive() {
   source.addEventListener("event", (e) => onEvent(JSON.parse(e.data)));
   source.addEventListener("segment", (e) => onSegment(JSON.parse(e.data)));
   source.addEventListener("trace", (e) => onTrace(JSON.parse(e.data)));
+  source.addEventListener("overlay", (e) => onOverlay(JSON.parse(e.data).cue));
   source.addEventListener("error", (e) => { if (e.data) addNote(JSON.parse(e.data).message); });
   source.addEventListener("end", () => { source.close(); setLive(false, "FULL TIME"); });
   let onAir = false;
@@ -252,6 +253,41 @@ function onSegment(seg) {
   $("feed").prepend(segmentCard(seg, llm.model));
   while ($("feed").childElementCount > 120) $("feed").lastElementChild.remove();
   if (seg.kind !== "stats") voice.say(seg.text, seg.lang, seg.importance >= 0.9);
+}
+
+// Broadcast graphics preview: renders the same overlay cues a graphics engine would receive.
+const gfxTimers = {};
+function showGfx(id, build, seconds) {
+  const box = $(id);
+  build(box);
+  box.hidden = false;
+  box.style.animation = "none";
+  void box.offsetWidth; // restart the slide-in animation
+  box.style.animation = "";
+  clearTimeout(gfxTimers[id]);
+  gfxTimers[id] = setTimeout(() => { box.hidden = true; }, seconds * 1000);
+}
+
+function onOverlay(cue) {
+  const p = cue.payload;
+  if (cue.type === "lower_third") {
+    showGfx("lowerThird", (box) => {
+      box.className = `lower-third${p.player && players[p.player.id]?.team === "away" ? " away" : ""}`;
+      const who = p.player ? `#${p.player.number} ${p.player.name}` : p.team;
+      box.replaceChildren(Object.assign(document.createElement("b"), { textContent: `${p.title} · ${cue.at.display_minute}` }),
+        Object.assign(document.createElement("strong"), { textContent: who }),
+        ...p.lines.map((line) => Object.assign(document.createElement("small"), { textContent: line })));
+    }, 4);
+  } else if (cue.type === "stat_card") {
+    showGfx("statCard", (box) => {
+      const rows = p.rows.map((r) => {
+        const row = document.createElement("div");
+        for (const text of [r.home, r.label, r.away]) row.append(Object.assign(document.createElement("span"), { textContent: text }));
+        return row;
+      });
+      box.replaceChildren(Object.assign(document.createElement("b"), { textContent: `${p.title} · ${cue.at.display_minute}` }), ...rows);
+    }, 6);
+  }
 }
 
 function addNote(message) {
