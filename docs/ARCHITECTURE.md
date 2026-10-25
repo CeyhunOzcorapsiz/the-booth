@@ -18,6 +18,14 @@
 
 The stats desk also exposes `storylines` as a tool for the model-backed stats producer.
 
+## Tracking
+
+`booth/sim/tracking.py` synthesises 1 Hz positions for all 22 players from the events: players involved in an event are placed at the ball, everyone else takes a 4-3-3 slot that shifts with the ball and possession, and movement respects each player's top speed and an acceleration limit, with smooth off-ball drift. The shared state exposes positions and running stats; the stats desk has a `physical` tool; the fact-checker accepts the tracked speeds of the players in a moment.
+
+## Video to events
+
+`booth/vision` renders broadcast-style clips from the tracking (fixed elevated camera, perspective, noise, compression) and runs an auto-eventing pipeline on the encoded video that sees only pixels: corner-flag calibration, background subtraction, kit-colour player detection, ball detection with trajectory prediction, tracking, possession spells, and passes / turnovers / shots with distance and speed. `python -m booth.vision --benchmark` scores it against ground truth; see [VISION.md](VISION.md).
+
 ## Hand-offs inside the crew
 
 ```

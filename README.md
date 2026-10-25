@@ -18,6 +18,10 @@ Built for the Microsoft × Premier League **Inside the Game** developer hackatho
 |---|---|---|
 | ![Audio-first mode describing where the ball is, in Turkish](docs/img/audio-first-tr.png) | ![Choosing language, style and accessibility](docs/img/setup.png) | ![Mobile layout](docs/img/mobile.png) |
 
+| Video to events: auto-eventing from pixels, scored against ground truth |
+|---|
+| ![Synthetic clip with detected passes, turnovers and shots marked matched, missed or false alarm](docs/img/vision.png) |
+
 Try the demo match directly: `/?live=1&seed=119&lang=en&style=hype&start=76` or `/?view=compare&seed=119`.
 
 ## The problem
@@ -61,8 +65,8 @@ The brief asks for one pipeline with five stages. Here is where each one lives:
 
 | Stage | In The Booth |
 |---|---|
-| **Ingest** synthetic events as they happen | Seeded generator (`booth/sim`) streams ~1,000 events per match (passes, tackles, interceptions, shots, possession changes, cards, set pieces, subs) on a live match clock |
-| **Interpret** into stats, patterns and context | Shared `MatchState`: score, possession, momentum, pass accuracy and difficulty, shot speed, rhythm (control vs chaos); the **storyline agent** finds comebacks, late winners, braces, quick-fire goals, spells of control |
+| **Ingest** synthetic events as they happen | Seeded generator (`booth/sim`) streams ~1,000 events per match (passes, tackles, interceptions, shots, possession changes, cards, set pieces, subs) on a live match clock, plus 1 Hz tracking of all 22 players; or events detected from video |
+| **Interpret** into stats, patterns and context | Shared `MatchState`: score, possession, momentum, pass accuracy and difficulty, shot speed, distance and sprints from tracking, rhythm (control vs chaos); the **storyline agent** finds comebacks, late winners, braces, quick-fire goals, spells of control |
 | **Explain** why a moment matters | Analyst, recap editor and guide explain moments with fact-checked numbers; every line links to its sources; rule explainers for newcomers |
 | **Render** on screen alongside the match | Pitch with all 22 players, storyline banner, stat rows and call-outs; **timed overlay cues** (score bug, lower thirds, stat cards, player tags) for a graphics engine: [docs/OVERLAYS.md](docs/OVERLAYS.md) |
 | **Personalize** for every fan | Language, style (hype, calm, tactical, new to football), audio-first mode, favorite club, followed player; "same moment, three shows" puts the difference side by side |
@@ -71,10 +75,10 @@ And the suggested features:
 
 | Suggested in the brief | Status |
 |---|---|
-| Player identification with speed and distance indicators at thresholds | Players named on the pitch; shot speed and pass distance tags appear on the player at thresholds. Running speed and distance covered are **not** modeled (event data, no tracking) |
+| Player identification with speed and distance indicators at thresholds | Done: synthetic 1 Hz tracking for all 22 players gives distance covered, top speed and sprints; sprint, shot-speed and long-ball tags appear on the player at thresholds |
 | Pass quality: distance, accuracy, difficulty rating | Done: per-pass distance, metres gained, 0-100 difficulty; team pass accuracy |
 | Speed metrics: ball speed, shot speed | Done: synthetic estimates on every pass and shot |
-| Auto-eventing from a video feed | **Not in scope**: we generate synthetic events instead of reading video |
+| Auto-eventing from a video feed | Done on synthetic video: we render broadcast-style clips from the tracking data, and a computer-vision pipeline that only sees the pixels detects passes, turnovers and shots and measures pass distance and ball speed, scored against ground truth ([docs/VISION.md](docs/VISION.md)) |
 | Narrative generation, milestones, recaps | Done: storyline agent, analyst, half and full-time recaps |
 | Explainability: control vs chaos, pressure changes, rhythm | Done: rhythm meter, momentum, storyline announcements when a team takes control or the game breaks up |
 | Data innovation: synthetic datasets | Done: `python -m booth.dataset` exports matches, events, players, storylines ([docs/DATASET.md](docs/DATASET.md)) |
@@ -108,7 +112,7 @@ flowchart LR
 | Interop | **Model Context Protocol** server (stats desk + crew as tools) for GitHub Copilot and other agents |
 | Dev | GitHub, GitHub Actions CI, GitHub Copilot |
 
-More detail: [architecture](docs/ARCHITECTURE.md) · [synthetic dataset](docs/DATASET.md) · [deploy to Azure](docs/DEPLOY.md) · [free setup](docs/FREE_SETUP.md) · [pitch](docs/PITCH.md) · [demo script](docs/DEMO.md).
+More detail: [architecture](docs/ARCHITECTURE.md) · [video to events](docs/VISION.md) · [synthetic dataset](docs/DATASET.md) · [deploy to Azure](docs/DEPLOY.md) · [free setup](docs/FREE_SETUP.md) · [pitch](docs/PITCH.md) · [demo script](docs/DEMO.md).
 
 ## Run it
 
@@ -154,6 +158,16 @@ python -m booth.mcp_server            # stdio; add --http --port 8765 for stream
 ```
 
 The MCP server exposes the stats desk and the crew as tools: `squads`, `highlights`, `score`, `team_stats`, `player_stats`, `storylines`, `events`, `overlay_cues` and `broadcast_moment` (the fact-checked crew commentates one moment for a language and style). `.vscode/mcp.json` registers it for GitHub Copilot agent mode in VS Code.
+
+### Video to events (auto-eventing)
+
+```bash
+cd backend
+pip install -e ".[vision]"
+python -m booth.vision --benchmark --out ../vision-bench
+```
+
+Renders broadcast-style clips from the tracking data and runs a computer-vision pipeline on the encoded video that only sees pixels. Across six clips it detects passes with F1 0.75 (precision 0.88), measures pass speed to a median 3.4 km/h and distance to 0.95 m, and calibrates the camera to within 0.2 m. The web app's **Video to events** tab plays the clip with every detection marked. Details and limits: [docs/VISION.md](docs/VISION.md).
 
 ### Export the synthetic dataset
 

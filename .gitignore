@@ -27,3 +27,7 @@ synthetic-data/
 
 # Static demo build
 _site/
+
+# Auto-eventing cache
+.vision-cache/
+vision-out/

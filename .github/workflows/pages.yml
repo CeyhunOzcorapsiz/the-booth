@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: backend/pyproject.toml
-      - run: pip install .
+      - run: pip install ".[vision]"
       - run: python -m booth.static_site --out ../_site
       - uses: actions/upload-pages-artifact@v3
         with:

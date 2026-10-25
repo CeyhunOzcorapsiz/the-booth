@@ -116,7 +116,7 @@ def test_static_demo_build(tmp_path):
     from booth import static_site
 
     out = tmp_path / "site"
-    summary = asyncio.run(static_site.build(out))
+    summary = asyncio.run(static_site.build(out, with_vision=False))
     assert summary["profiles"] == len(static_site.PROFILES) and summary["size_mb"] < 15
     index = (out / "index.html").read_text(encoding="utf-8")
     assert 'data-static="1"' in index and "/static/" not in index

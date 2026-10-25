@@ -39,7 +39,8 @@ export async function getJSON(path) {
     return res.json();
   }
   const url = new URL(path, location.href);
-  const file = { "/api/options": "options", "/api/health": "health", "/api/match": "match", "/api/moments": "moments" }[
+  const file = { "/api/options": "options", "/api/health": "health", "/api/match": "match", "/api/moments": "moments",
+    "/api/vision": "vision" }[
     url.pathname
   ];
   if (!file) throw new Error(`not available in the static demo: ${url.pathname}`);

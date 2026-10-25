@@ -184,6 +184,31 @@ def overlay_cues(
     }
 
 
+@app.get("/api/vision")
+def vision(request: Request) -> dict:
+    """Auto-eventing demo: a synthetic video clip, the events detected from its pixels, and their score.
+
+    Built in the background on first request (about two minutes); poll until ``status`` is ``ready``.
+    """
+    from booth.vision import demo
+
+    throttle(request, 0.25)
+    result = demo.status()
+    if result["status"] == "ready":
+        result["video_url"] = "/api/vision/video"
+    return result
+
+
+@app.get("/api/vision/video", include_in_schema=False)
+def vision_video() -> FileResponse:
+    from booth.vision import demo
+
+    _, video = demo.paths()
+    if not video.exists():
+        raise HTTPException(404, "The demo clip is not built yet: call /api/vision first.")
+    return FileResponse(video, media_type="video/mp4")
+
+
 @app.get("/api/moments")
 def moments(request: Request, seed: Seed = 42) -> list[dict]:
     """Highlights worth comparing across viewer profiles."""

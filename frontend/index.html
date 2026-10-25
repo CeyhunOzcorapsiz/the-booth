@@ -20,6 +20,7 @@
   <nav class="views" aria-label="Views">
     <button data-view="live" aria-current="true">Live</button>
     <button data-view="compare" aria-current="false">Same moment, 3 shows</button>
+    <button data-view="vision" aria-current="false">Video to events</button>
   </nav>
   <div class="top-actions">
     <span class="badge" id="providerBadge" title="Model provider">OFFLINE</span>
@@ -101,6 +102,28 @@
     </div>
   </div>
   <div class="compare-columns" id="compareColumns"></div>
+</main>
+<main class="vision" id="visionView" hidden>
+  <div class="panel vision-intro">
+    <div><h2>Video to events</h2>
+      <p class="sub">A synthetic broadcast clip, rendered from the match's tracking data. The auto-eventing pipeline sees only the pixels: it calibrates the camera from the corner flags, finds players by kit colour and the ball as a small moving white blob, tracks them, and turns changes of possession into passes, turnovers and shots, with pass distance and ball speed. Every detection is scored against what really happened.</p>
+    </div>
+    <p class="vision-status" id="visionStatus" role="status"></p>
+  </div>
+  <div class="vision-grid">
+    <section class="panel">
+      <video id="visionVideo" controls muted playsinline preload="metadata" aria-label="Synthetic match clip"></video>
+      <table class="stats vision-metrics" aria-label="Detection accuracy">
+        <thead><tr><th>Event</th><th>Truth</th><th>Detected</th><th>Matched</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+        <tbody id="visionMetrics"></tbody>
+      </table>
+      <p class="sub" id="visionExtra"></p>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><h2>Detected vs. truth</h2><p class="sub">Click an event to jump to it in the clip</p></div></div>
+      <ol class="vision-events" id="visionEvents"></ol>
+    </section>
+  </div>
 </main>
 <footer><p class="static-note" id="staticNote" hidden>Static demo: pre-recorded broadcasts of match 119 on GitHub Pages, without a server or model. Run the full app locally or on Azure: see the README.</p>All clubs, players and events are synthetic and generated from a seed. No real match data is used.</footer>
 

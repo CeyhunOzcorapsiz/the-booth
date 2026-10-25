@@ -212,6 +212,29 @@ dialog select, dialog input[type="number"] { background: var(--panel-2); border:
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
+/* video to events */
+.vision { padding: 16px 24px; max-width: 1600px; margin: 0 auto; display: grid; gap: 16px; }
+.vision-intro p.sub { max-width: 980px; line-height: 1.55; }
+.vision-status { color: var(--amber); margin: 8px 0 0; }
+.vision-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; }
+.vision video { width: 100%; border-radius: 10px; background: #000; display: block; }
+.vision-metrics { margin-top: 12px; }
+.vision-metrics th { font: 600 10px var(--mono); letter-spacing: 1px; color: var(--muted); text-align: right; padding: 6px 0; }
+.vision-metrics th:first-child, .vision-metrics td:first-child { text-align: left; width: auto; }
+.vision-metrics td { text-align: right; font-family: var(--mono); }
+.vision-events { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; font-size: 12px; }
+.vision-row { display: grid; grid-template-columns: 52px 74px 40px 1fr auto; gap: 8px; align-items: center; padding: 7px 8px; border-top: 1px solid var(--border); cursor: pointer; border-radius: 6px; }
+.vision-row:hover, .vision-row:focus-visible { background: var(--panel-2); }
+.vision-row .when { font-family: var(--mono); color: var(--muted); }
+.vision-row .team.home { color: var(--lime); }
+.vision-row .team.away { color: var(--coral); }
+.vision-row .detail { color: #aab4a0; font-family: var(--mono); }
+.vision-row .status { font: 600 10px var(--mono); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); }
+.vision-row .status.match { color: var(--lime); border-color: #4f6430; }
+.vision-row .status.false { color: var(--coral); border-color: #7a4636; }
+.vision-row .status.missed { color: var(--amber); border-color: #7a6330; }
+@media (max-width: 1080px) { .vision-grid { grid-template-columns: 1fr; } .vision { padding: 12px 16px; } }
+
 /* view switch */
 .views { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
 .views button { background: none; border: 0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--muted); }

@@ -64,7 +64,7 @@ async def _record(match, profile: ViewerProfile, crew: Crew) -> tuple[list, dict
     return timeline, {"hello": hello, "messages": messages}
 
 
-async def build(out: Path) -> dict:
+async def build(out: Path, with_vision: bool = True) -> dict:
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(FRONTEND, out)
@@ -110,6 +110,8 @@ async def build(out: Path) -> dict:
                 {"event": result["event"], "state": result["state"], "broadcast": result["broadcasts"][0]},
             )
 
+    vision = _vision(data) if with_vision else "skipped"
+
     manifest = {
         "seed": DEMO_SEED,
         "version": __version__,
@@ -123,8 +125,29 @@ async def build(out: Path) -> dict:
         "profiles": len(PROFILES),
         "highlights": len(highlights),
         "events": len(timeline),
+        "vision": vision,
         "size_mb": round(size / 1e6, 1),
     }
+
+
+def _vision(data: Path) -> str:
+    """Render and analyse the auto-eventing demo clip if the vision extra is installed."""
+    from booth.vision import demo
+
+    if demo.available():
+        _write(data / "vision.json", {"status": "unavailable", "reason": "built without the vision extra"})
+        return "skipped"
+    from booth.vision.__main__ import run_clip
+
+    clip = demo.DEMO
+    payload = run_clip(clip["seed"], clip["period"], clip["start"], clip["minutes"], data / "vision")
+    _write(
+        data / "vision.json",
+        {"status": "ready", **payload, "video_url": f"data/vision/{payload['clip']['video']}"},
+    )
+    for extra in (data / "vision").glob("*.json"):
+        extra.unlink()  # the payload above is the only copy the page needs
+    return "built"
 
 
 def main() -> None:

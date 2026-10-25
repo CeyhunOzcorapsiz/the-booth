@@ -1,6 +1,7 @@
 import { Pitch } from "./pitch.js";
 import { Voice } from "./voice.js";
 import { initCompare } from "./compare.js";
+import { initVision } from "./vision.js";
 import { segmentCard, segmentFoot } from "./render.js";
 import { applyStatic, setUiLang, t, uiLang } from "./i18n.js";
 import { STATIC, getJSON, openStream, postJSON } from "./api.js";
@@ -420,7 +421,10 @@ if (params.has("seed")) {
   $("seed").value = params.get("seed");
   await loadMatch(Number(params.get("seed")) || 0);
 }
-if (params.get("view") === "compare") {
+initVision();
+if (params.get("view") === "vision") {
+  document.querySelector('[data-view="vision"]').click();
+} else if (params.get("view") === "compare") {
   compareView.open(params.get("event"));
 } else if (params.get("live") === "1") {
   const style = params.get("style") ?? "hype";

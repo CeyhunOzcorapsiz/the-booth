@@ -12,12 +12,14 @@ const DEFAULTS = [
 const STYLES = [["hype", "Hype"], ["calm", "Calm"], ["tactical", "Tactical"], ["beginner", "New to football"]];
 
 export function initCompare({ voice, seed, model, languages }) {
-  const views = { live: $("liveView"), compare: $("compareView") };
-  for (const button of document.querySelectorAll("[data-view]")) {
+  const buttons = [...document.querySelectorAll("[data-view]")];
+  const views = Object.fromEntries(buttons.map((b) => [b.dataset.view, $(`${b.dataset.view}View`)]));
+  for (const button of buttons) {
     button.addEventListener("click", () => {
       for (const [name, el] of Object.entries(views)) el.hidden = name !== button.dataset.view;
-      for (const b of document.querySelectorAll("[data-view]")) b.setAttribute("aria-current", String(b === button));
+      for (const b of buttons) b.setAttribute("aria-current", String(b === button));
       if (button.dataset.view === "compare") loadMoments();
+      window.dispatchEvent(new CustomEvent("viewchange", { detail: button.dataset.view }));
     });
   }
 

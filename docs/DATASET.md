@@ -33,7 +33,11 @@ All tables join on `match_id` (`M000119` for seed 119) and `player_id` (`H9` = h
 
 ### `players.csv`, one row per player per match
 
-Squad info (`number, name, position, starter`) and per-match counters: `passes, shots, shots_on_target, goals, assists, tackles, interceptions, fouls, saves, yellow_cards, red_cards`.
+Squad info (`number, name, position, starter`), per-match counters (`passes, shots, shots_on_target, goals, assists, tackles, interceptions, fouls, saves, yellow_cards, red_cards`) and running stats from tracking (`distance_km, top_speed_kmh, sprints, high_intensity_m`).
+
+### `tracking.csv` (with `--tracking`)
+
+1 Hz synthetic tracking: `match_id, period, clock_s, player_id, x, y, speed_kmh`, about 125,000 rows (4.5 MB) per match. Built to be consistent with the events (players involved in an event are at the ball) and calibrated to look like football: about 10-11 km per outfield player, top speeds of 29-34 km/h, 15-40 sprints (two seconds or more above 25 km/h).
 
 ### `storylines.csv`
 

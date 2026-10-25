@@ -63,7 +63,12 @@ def page(browser):
     context.close()
     # Navigating away mid-broadcast resets the open event stream (and fonts may drop); that's the network,
     # not the app. JavaScript errors and any other console error still fail the test.
-    transient = ("net::ERR_CONNECTION_RESET", "net::ERR_ABORTED", "net::ERR_NETWORK_CHANGED")
+    transient = (
+        "net::ERR_CONNECTION_RESET",
+        "net::ERR_ABORTED",
+        "net::ERR_NETWORK_CHANGED",
+        "net::ERR_SSL_PROTOCOL_ERROR",
+    )
     errors = [
         e for e in errors if not (e.startswith("Failed to load resource") and any(t in e for t in transient))
     ]
@@ -143,3 +148,13 @@ def test_overlays_metrics_and_favorite_club(page, base_url):
         page.locator("#chaosLabel").inner_text() in ("controlled", "open", "chaotic")
         or "·" in page.locator("#chaosLabel").inner_text()
     )
+
+
+def test_video_to_events_view_opens(page, base_url):
+    page.goto(f"{base_url}/?view=vision")
+    view = page.locator("#visionView")
+    playwright_api.expect(view).to_be_visible()
+    # either the clip is ready (events listed) or the server says what it is doing (building / unavailable)
+    progress = page.locator(".vision-row").first.or_(page.locator("#visionStatus:not(:empty)"))
+    playwright_api.expect(progress).to_be_visible(timeout=10_000)
+    assert "Video to events" in view.locator("h2").first.inner_text()
