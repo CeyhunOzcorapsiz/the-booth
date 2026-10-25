@@ -153,3 +153,7 @@ An earlier exploration (Ghost Play, evidence-led tactical replays) lives in [leg
 ## License
 
 [MIT](LICENSE)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
