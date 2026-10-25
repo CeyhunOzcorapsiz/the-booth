@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # One-shot Azure setup for The Booth. Run after `az login`, from the repository root:
 #
-#   bash infra/deploy.sh                      # everything: Foundry model, telemetry, Container App
-#   bash infra/deploy.sh --local-only         # only the Foundry model, and write it to .env for local runs
+#   bash infra/deploy.sh                      # everything: Foundry model, speech, telemetry, Container App
+#   bash infra/deploy.sh --local-only         # only the Foundry model (+ speech), written to .env for local runs
 #
 # Creates (all in one resource group, so `az group delete` removes everything):
 #   - Microsoft Foundry (AI Services) resource + a gpt-4.1-mini deployment
+#   - Azure AI Speech on the free F0 tier (neural voices; skipped if the subscription already has an F0)
 #   - Log Analytics + Application Insights (agent traces)
 #   - Azure Container Apps environment + app, pulling the public image built by GitHub Actions (GHCR)
 # Secrets go into .env (git-ignored) and Container Apps secrets, never into the repository.
@@ -14,6 +15,7 @@ set -euo pipefail
 RG="${RG:-the-booth-rg}"
 LOCATION="${LOCATION:-swedencentral}"
 AI_NAME="${AI_NAME:-booth-ai-$RANDOM}"
+SPEECH_NAME="${SPEECH_NAME:-booth-speech-$RANDOM}"
 MODEL="${MODEL:-gpt-4.1-mini}"
 MODEL_VERSION="${MODEL_VERSION:-2025-04-14}"
 CAPACITY="${CAPACITY:-50}"
@@ -41,6 +43,15 @@ az cognitiveservices account deployment create -n "$AI_NAME" -g "$RG" \
 ENDPOINT="https://$AI_NAME.openai.azure.com/openai/v1/"
 KEY="$(az cognitiveservices account keys list -n "$AI_NAME" -g "$RG" --query key1 -o tsv)"
 
+step "Azure AI Speech (free F0 tier)"
+SPEECH_KEY=""
+if az cognitiveservices account create -n "$SPEECH_NAME" -g "$RG" -l "$LOCATION" \
+     --kind SpeechServices --sku F0 --yes -o none 2>/dev/null; then
+  SPEECH_KEY="$(az cognitiveservices account keys list -n "$SPEECH_NAME" -g "$RG" --query key1 -o tsv)"
+else
+  echo "Speech F0 not created (only one F0 per subscription is allowed). The browser voice will be used."
+fi
+
 step "Writing .env (git-ignored)"
 [[ -f .env ]] && cp .env .env.backup
 cat > .env <<ENV
@@ -49,8 +60,10 @@ FOUNDRY_ENDPOINT=$ENDPOINT
 FOUNDRY_API_KEY=$KEY
 FOUNDRY_MODEL=$MODEL
 BOOTH_LLM_MIN_IMPORTANCE=0.5
+AZURE_SPEECH_KEY=$SPEECH_KEY
+AZURE_SPEECH_REGION=$LOCATION
 ENV
-echo "Foundry endpoint: $ENDPOINT (key stored in .env)"
+echo "Foundry endpoint: $ENDPOINT (keys stored in .env)"
 
 if $LOCAL_ONLY; then
   step "Done. Start the app locally and the crew will use $MODEL."
@@ -68,10 +81,16 @@ az extension add --name containerapp --upgrade -o none 2>/dev/null || true
 az containerapp up -n "$APP" -g "$RG" -l "$LOCATION" --image "$IMAGE" \
   --ingress external --target-port 8000 -o none
 az containerapp secret set -n "$APP" -g "$RG" \
-  --secrets foundry-key="$KEY" insights="$INSIGHTS" -o none
-az containerapp update -n "$APP" -g "$RG" --min-replicas 0 --max-replicas 2 \
+  --secrets foundry-key="$KEY" insights="$INSIGHTS" speech-key="${SPEECH_KEY:-none}" -o none
+SPEECH_ENV=()
+if [[ -n "$SPEECH_KEY" ]]; then
+  SPEECH_ENV=(AZURE_SPEECH_KEY=secretref:speech-key AZURE_SPEECH_REGION="$LOCATION")
+fi
+# One replica: rate limits and the model budget are kept in memory per replica.
+az containerapp update -n "$APP" -g "$RG" --min-replicas 0 --max-replicas 1 \
   --set-env-vars BOOTH_LLM=foundry FOUNDRY_ENDPOINT="$ENDPOINT" FOUNDRY_MODEL="$MODEL" \
-  FOUNDRY_API_KEY=secretref:foundry-key APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:insights -o none
+  FOUNDRY_API_KEY=secretref:foundry-key APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:insights \
+  BOOTH_TRUST_PROXY=true BOOTH_LLM_DAILY_BUDGET=1500 "${SPEECH_ENV[@]}" -o none
 
 URL="https://$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
 step "Live at $URL"

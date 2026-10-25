@@ -10,6 +10,7 @@ dependencies = [
   "agent-framework-core>=1.23",
   "agent-framework-openai>=1.17",
   "python-dotenv>=1.0",
+  "httpx>=0.27",
 ]
 
 [project.optional-dependencies]

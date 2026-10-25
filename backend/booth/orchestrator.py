@@ -35,6 +35,7 @@ class Broadcast:
         speed: float = 20.0,
         start_minute: float = 0.0,
         max_gap_s: float = 2.5,
+        drop_stale: bool = True,
     ):
         if speed <= 0:
             raise ValueError("speed must be positive")
@@ -44,6 +45,7 @@ class Broadcast:
         self.speed = speed
         self.start_clock = max(0.0, start_minute) * 60
         self.max_gap_s = max_gap_s
+        self.drop_stale = drop_stale
         self.state = MatchState(match)
 
     async def stream(self) -> AsyncIterator[dict]:
@@ -84,7 +86,7 @@ class Broadcast:
             while (job := await jobs.get()) is not None:
                 now = self.state.last_event
                 lag = now.clock - job.event.clock if now and now.period == job.event.period else 0.0
-                if job.importance < MUST_AIR and lag > STALE_AFTER_S:
+                if self.drop_stale and job.importance < MUST_AIR and lag > STALE_AFTER_S:
                     trace(job.id, "director", "dropped", f"{lag:.0f}s behind live play", 0)
                     continue
                 segments = await self.crew.produce(
