@@ -61,7 +61,8 @@ flowchart LR
 | Agents | **Microsoft Agent Framework** (Python) — `Agent`, function tools, OpenAI-compatible chat client |
 | Models | **Microsoft Foundry** model deployment (e.g. `gpt-4.1-mini`), or GitHub Models for development |
 | Backend | FastAPI, Server-Sent Events |
-| Frontend | Vanilla JS + SVG, browser speech synthesis (Azure AI Speech planned) |
+| Voice | **Azure AI Speech** neural voices (free F0 tier) proxied by the server, browser speech synthesis as fallback |
+| Frontend | Vanilla JS + SVG |
 | Hosting | **Azure Container Apps**, image built by GitHub Actions and published to GitHub Container Registry |
 | Observability | **Azure Monitor / Application Insights** via OpenTelemetry: a span per director job, plus Agent Framework spans for agent runs, model calls and tool calls |
 | Dev | GitHub, GitHub Actions CI, GitHub Copilot |
@@ -95,6 +96,15 @@ docker build -t the-booth .
 docker run -p 8000:8000 --env-file .env the-booth
 ```
 
+### Evaluate the crew
+
+```bash
+cd backend
+python -m booth.evaluate --seed 119 --out eval.md
+```
+
+Replays a whole match for several profiles and reports the fact-check pass rate of model drafts, rejection reasons, fallbacks and per-agent latency. Offline it gives the template baseline (pass rate 1.0).
+
 ### Tests
 
 ```bash
@@ -116,7 +126,17 @@ The tests include a scripted model that exercises the reject → rewrite hand-of
 | `GET /api/broadcast?seed=&lang=&style=&accessible=&follow=&speed=&start=` | Live broadcast as SSE: `hello`, `event`, `trace`, `segment`, `end` |
 | `POST /api/ask` | `{seed, minute, question, lang}`: answered from the stats desk at that minute |
 | `GET /api/moments?seed=` | Highlights worth comparing (goals, penalties, red cards, big saves) |
+| `POST /api/tts` | `{text, lang}` → MP3 from Azure AI Speech (503 when not configured) |
 | `POST /api/compare` | `{seed, event_id, profiles?}`: the same moment broadcast for up to 4 profiles, with traces |
+
+## Running it in public
+
+A public URL can burn model credit, so the server protects itself (all configurable in `.env`):
+
+- per-client rate limits on every costly endpoint (`BOOTH_REQUESTS_PER_MINUTE`, HTTP 429),
+- caps on concurrent broadcasts overall and per client (`BOOTH_MAX_STREAMS`, `BOOTH_MAX_STREAMS_PER_CLIENT`),
+- a daily budget of agent runs (`BOOTH_LLM_DAILY_BUDGET`) and of speech characters (`BOOTH_SPEECH_DAILY_CHARS`); once spent, the crew switches to templates and the browser voice,
+- API keys stay on the server; the browser never sees them.
 
 ## Synthetic data statement
 

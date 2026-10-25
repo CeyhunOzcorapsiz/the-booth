@@ -53,22 +53,17 @@ Segments are cached per (event, viewer profile), so replaying the same seed with
 
 ## 2. Voice
 
-- **Now:** the browser's built-in speech synthesis. Free, no key, works offline.
-- **Planned:** Azure AI Speech has a free tier (F0) with a monthly allowance of neural text-to-speech, enough for demos.
+- **Default:** the browser's built-in speech synthesis. Free, no key, works offline.
+- **Better:** Azure AI Speech neural voices on the free F0 tier (a monthly allowance of neural text-to-speech, enough for demos). `infra/deploy.sh` creates it, or set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. The server proxies requests so the key stays private, caches repeated lines and stops at `BOOTH_SPEECH_DAILY_CHARS` per day.
 
 ## 3. Hosting
 
-**Azure Container Apps** has a monthly free grant of vCPU-seconds, memory and requests that covers a demo. With the Azure CLI:
+**Azure Container Apps** has a monthly free grant of vCPU-seconds, memory and requests that covers a demo, and scales to zero when nobody is watching. The image is built by GitHub Actions and stored in GitHub Container Registry, which is free for public images (building in Azure would need a paid Azure Container Registry).
 
-```bash
-az containerapp up --name the-booth --resource-group the-booth-rg --location westeurope \
-  --source . --ingress external --target-port 8000 \
-  --env-vars BOOTH_LLM=foundry FOUNDRY_ENDPOINT=... FOUNDRY_MODEL=... FOUNDRY_API_KEY=secretref:foundry-key
-```
-
-Store the key as a Container Apps secret, never in the image or the repository.
+`bash infra/deploy.sh` does the whole setup; see [DEPLOY.md](DEPLOY.md). Keys are stored as Container Apps secrets, never in the image or the repository.
 
 ## 4. Development tools
 
 - **GitHub Copilot**: Copilot Free for everyone; Copilot Pro is free for verified students through the GitHub Student Developer Pack (https://education.github.com/pack).
+- **GitHub Container Registry**: free for public images; CI publishes `ghcr.io/ceyhunozcorapsiz/the-booth`.
 - **GitHub Actions**: free for public repositories. CI runs tests and lint on every push.

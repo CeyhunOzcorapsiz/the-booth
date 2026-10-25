@@ -5,6 +5,7 @@ Everything is scripted in [`infra/deploy.sh`](../infra/deploy.sh). It creates on
 | Resource | Why | Cost |
 |---|---|---|
 | Microsoft Foundry (AI Services) + `gpt-4.1-mini` deployment | Model behind the agents | Pay per token; a full broadcast is a few cents of credit |
+| Azure AI Speech (F0) | Neural voices for the audio-first mode | Free tier |
 | Application Insights + Log Analytics | Traces of every agent run, model call, tool call and crew hand-off | Free monthly ingestion allowance |
 | Azure Container Apps | Hosts the app, scales to zero | Free monthly grant |
 | GitHub Container Registry | Hosts the image built by CI | Free for public images |
@@ -51,6 +52,10 @@ Override any of these as environment variables:
 | `IMAGE` | `ghcr.io/ceyhunozcorapsiz/the-booth:latest` |
 
 If the model deployment fails with a quota error (common on student subscriptions), try another `LOCATION` (for example `eastus2`), a lower `CAPACITY`, or `MODEL=gpt-4o-mini MODEL_VERSION=2024-07-18`.
+
+## Protection on the public URL
+
+The deployment runs one replica with `BOOTH_TRUST_PROXY=true` (client addresses come from the Container Apps ingress) and `BOOTH_LLM_DAILY_BUDGET=1500` agent runs per day. When the budget is spent the crew keeps broadcasting on templates. See the README section "Running it in public" for all limits.
 
 ## Observing the crew
 

@@ -182,3 +182,14 @@ def test_runtime_reports_offline_without_config():
     assert status["provider"] == "offline" and not status["configured"]
     with pytest.raises(LLMUnavailable):
         asyncio.run(LLMRuntime(LLMConfig()).run("x", "y", "z"))
+
+
+async def test_evaluation_reports_offline_baseline():
+    from booth.evaluate import evaluate, parse_profile, to_markdown
+
+    runtime = LLMRuntime(LLMConfig())
+    reports = await evaluate(119, [parse_profile("tr:beginner:accessible")], runtime)
+    data = reports[0].to_dict()
+    assert data["fact_check_pass_rate"] == 1.0
+    assert data["sources"] == {"template": sum(data["segments"].values())}
+    assert "seed 119" in to_markdown(119, runtime, reports)

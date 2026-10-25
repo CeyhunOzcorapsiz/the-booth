@@ -38,6 +38,7 @@ async function loadOptions() {
   const [options, health] = await Promise.all([fetch("/api/options").then((r) => r.json()),
     fetch("/api/health").then((r) => r.json())]);
   llm = health.llm;
+  voice.useNeural(Boolean(health.speech?.enabled));
   for (const [code, name] of Object.entries(options.languages)) {
     const offline = options.offline_languages.includes(code);
     const label = offline || llm.configured ? name : `${name} (needs a model)`;
@@ -109,7 +110,13 @@ function goLive() {
   source.addEventListener("trace", (e) => onTrace(JSON.parse(e.data)));
   source.addEventListener("error", (e) => { if (e.data) addNote(JSON.parse(e.data).message); });
   source.addEventListener("end", () => { source.close(); setLive(false, "FULL TIME"); });
-  source.onerror = () => { if (source.readyState === EventSource.CLOSED) setLive(false, "OFF AIR"); };
+  let onAir = false;
+  source.addEventListener("hello", () => { onAir = true; });
+  source.onerror = () => {
+    if (source.readyState !== EventSource.CLOSED) return;
+    setLive(false, "OFF AIR");
+    if (!onAir) addNote("Couldn't start the broadcast. The booth may be busy (too many live broadcasts); try again in a minute.");
+  };
   setLive(true, "LIVE");
 }
 

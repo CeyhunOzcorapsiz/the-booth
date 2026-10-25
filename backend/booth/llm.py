@@ -8,7 +8,8 @@ Providers (``BOOTH_LLM``):
 * ``openai``   – any other OpenAI-compatible endpoint.
 
 The runtime adds what a live broadcast needs around every call: a concurrency cap, a per-call timeout,
-a call budget and a circuit breaker that switches the crew to templates when the provider keeps failing.
+a daily budget, an importance threshold (applied by the crew) and a circuit breaker that switches the
+crew to templates when the provider keeps failing.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+
+from booth.limits import DailyBudget
 
 log = logging.getLogger("booth.llm")
 
@@ -39,6 +42,7 @@ class LLMConfig:
     min_importance: float = 0.5
     breaker_threshold: int = 3
     breaker_cooldown_s: float = 60.0
+    daily_budget: int = 0  # agent runs per UTC day, 0 = unlimited
 
     @property
     def enabled(self) -> bool:
@@ -58,6 +62,7 @@ class LLMConfig:
             "timeout_s": float(os.getenv("BOOTH_LLM_TIMEOUT", "12")),
             "max_concurrency": int(os.getenv("BOOTH_LLM_CONCURRENCY", "2")),
             "min_importance": float(os.getenv("BOOTH_LLM_MIN_IMPORTANCE", "0.5")),
+            "daily_budget": int(os.getenv("BOOTH_LLM_DAILY_BUDGET", "1500")),
         }
         if provider == "foundry":
             return cls(
@@ -95,6 +100,7 @@ class LLMRuntime:
         self._open_until = 0.0
         self.calls = 0
         self.errors = 0
+        self.budget = DailyBudget(self.config.daily_budget)
 
     @property
     def client(self):
@@ -107,7 +113,8 @@ class LLMRuntime:
         return self._client
 
     def available(self) -> bool:
-        return (self._client is not None or self.config.enabled) and time.monotonic() >= self._open_until
+        configured = self._client is not None or self.config.enabled
+        return configured and time.monotonic() >= self._open_until and not self.budget.exhausted()
 
     def status(self) -> dict:
         return {
@@ -115,12 +122,15 @@ class LLMRuntime:
             "breaker_open": time.monotonic() < self._open_until,
             "calls": self.calls,
             "errors": self.errors,
+            "budget": self.budget.status(),
         }
 
     async def run(self, name: str, instructions: str, prompt: str, tools: list | None = None) -> str:
         """Run one agent turn and return its text. Raises ``LLMUnavailable`` on any failure."""
         if not self.available():
-            raise LLMUnavailable("model provider not configured or temporarily disabled")
+            raise LLMUnavailable("model provider not configured, temporarily disabled or out of budget")
+        if not self.budget.take():
+            raise LLMUnavailable("daily model budget reached")
         from agent_framework import Agent
 
         agent = Agent(self.client, instructions, name=name, tools=tools or None)
