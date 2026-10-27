@@ -37,6 +37,12 @@ const LONG_BALL_M = 45;
 const KILLER_PASS = 80;
 
 const voice = new Voice();
+const GENDER_KEY = "booth.voiceGender";
+try {
+  voice.setGender(localStorage.getItem(GENDER_KEY) ?? "female");
+} catch {
+  // storage blocked: keep the default voice
+}
 const pitch = new Pitch($("pitch"), COLORS);
 let source = null;
 let players = {};
@@ -105,10 +111,30 @@ $("setupForm").addEventListener("submit", (e) => {
     accessible: $("accessible").checked, follow: $("follow").value, club: $("club").value, speed: $("speed").value,
     start: Number($("start").value) || 0,
   };
+  setGender($("gender").value);
   if (profile.accessible) setVoice(true);
   goLive();
 });
 $("voiceToggle").addEventListener("click", () => setVoice(!voice.enabled));
+
+function setGender(gender) {
+  voice.setGender(gender);
+  $("gender").value = voice.gender;
+  try {
+    localStorage.setItem(GENDER_KEY, voice.gender);
+  } catch {
+    // not persisted; the choice still applies to this visit
+  }
+}
+
+window.addEventListener("voicewarning", ({ detail: { lang, problem } }) => {
+  const name = LANG_NAMES[lang] ?? lang;
+  if (problem === "missing") {
+    addNote(`${t("No voice in this browser speaks")} ${name}. ${t("The booth stays quiet rather than read it in another language. Microsoft Edge has free natural voices, female and male, for all 12 languages; on Windows you can also add one in Settings → Time & language → Speech.")}`);
+  } else {
+    addNote(`${t(problem === "only-male" ? "Only a male voice is available for" : "Only a female voice is available for")} ${name}.`);
+  }
+});
 
 function setVoice(on) {
   voice.setEnabled(on);
@@ -449,6 +475,7 @@ if (params.has("seed")) {
   await loadMatch(Number(params.get("seed")) || 0);
 }
 initVision();
+setGender(params.get("gender") ?? voice.gender);
 if (params.get("view") === "vision") {
   document.querySelector('[data-view="vision"]').click();
 } else if (params.get("view") === "compare") {

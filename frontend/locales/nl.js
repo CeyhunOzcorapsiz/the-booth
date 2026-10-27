@@ -89,4 +89,12 @@ export default [
   "belang",
   "tackle",
   "onderschepping",
+  // voice
+  "Stem van de commentator",
+  "Vrouw",
+  "Man",
+  "Geen stem in deze browser spreekt",
+  "De cabine blijft stil in plaats van het in een andere taal voor te lezen. Microsoft Edge heeft gratis natuurlijke stemmen, vrouw en man, voor alle 12 talen; in Windows kun je er ook een toevoegen via Instellingen → Tijd en taal → Spraak.",
+  "Er is alleen een mannenstem voor",
+  "Er is alleen een vrouwenstem voor",
 ];

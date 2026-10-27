@@ -15,6 +15,7 @@ export function segmentCard(seg, model) {
   head.append(make("span", `speaker ${seg.kind}`, t(seg.speaker)), make("span", "", seg.minute));
   const text = make("div", "segment-text", seg.text);
   text.lang = seg.lang; // screen readers switch pronunciation for Turkish, Spanish, ...
+  text.dir = "auto"; // an Arabic line in an English interface (or the reverse) still runs the right way
   li.append(head, text, segmentFoot(seg, model));
   return li;
 }

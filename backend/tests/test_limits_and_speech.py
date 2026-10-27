@@ -76,14 +76,16 @@ async def test_speech_sends_ssml_with_key_and_caches():
         return httpx.Response(200, content=b"mp3-bytes")
 
     speech = Speech(key="k", region="westeurope", daily_chars=1000, transport=httpx.MockTransport(handler))
-    assert await speech.synthesize("Gol! <Vale>", "tr") == b"mp3-bytes"
-    assert await speech.synthesize("Gol! <Vale>", "tr") == b"mp3-bytes"
+    assert await speech.synthesize("Gol! <Vale>", "tr", "male") == b"mp3-bytes"
+    assert await speech.synthesize("Gol! <Vale>", "tr", "male") == b"mp3-bytes"
     assert len(seen) == 1
     request = seen[0]
     assert request.url.host == "westeurope.tts.speech.microsoft.com"
     assert request.headers["Ocp-Apim-Subscription-Key"] == "k"
     body = request.content.decode()
     assert "tr-TR-AhmetNeural" in body and "&lt;Vale&gt;" in body
+    await speech.synthesize("Gol! <Vale>", "tr", "female")  # the other voice is its own cache entry
+    assert len(seen) == 2 and "tr-TR-EmelNeural" in seen[1].content.decode()
 
 
 async def test_speech_budget_and_unconfigured():

@@ -54,7 +54,9 @@ Segments are cached per (event, viewer profile), so replaying the same seed with
 ## 2. Voice
 
 - **Default:** the browser's built-in speech synthesis. Free, no key, works offline.
-- **Better:** Azure AI Speech neural voices on the free F0 tier (a monthly allowance of neural text-to-speech, enough for demos). `infra/deploy.sh` creates it, or set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. The server proxies requests so the key stays private, caches repeated lines and stops at `BOOTH_SPEECH_DAILY_CHARS` per day.
+  A line is only read by a voice of its own language (a Turkish voice reading Japanese says the numbers in Turkish), so a language with no installed voice stays silent and the feed says why. Windows usually ships one or two languages; **Microsoft Edge** has free natural voices, female and male, for all 12 languages, so record demos in Edge. Viewers pick a female or male commentator in the setup dialog.
+- **Pronunciation:** before speaking, each line is rewritten the way a commentator in that language says it (`frontend/speakable.js`): scores (`0-2` → "0 a 2", "0 対 2"), percentages ("yüzde 62", "62 Prozent"), units, decimal commas, `45+3'`, `99/100`, and abbreviations spelled with that language's letter names ("FC" → "F C", "fe ce", "エフシー").
+- **Better:** Azure AI Speech neural voices (one female and one male voice per language) on the free F0 tier (a monthly allowance of neural text-to-speech, enough for demos). `infra/deploy.sh` creates it, or set `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. The server proxies requests so the key stays private, caches repeated lines and stops at `BOOTH_SPEECH_DAILY_CHARS` per day.
 
 ## 3. Hosting
 

@@ -189,7 +189,16 @@ const TR = {
   "importance": "önem",
   "tackle": "top kapma",
   "interception": "araya girme",
+  // voice
+  "Commentator voice": "Spiker sesi",
+  "Female": "Kadın",
+  "Male": "Erkek",
+  "No voice in this browser speaks": "Bu tarayıcıda şu dilde ses yok:",
+  "The booth stays quiet rather than read it in another language. Microsoft Edge has free natural voices, female and male, for all 12 languages; on Windows you can also add one in Settings → Time & language → Speech.": "Stüdyo, yayını başka bir dilin sesiyle okumak yerine sessiz kalıyor. Microsoft Edge'de 12 dilin hepsi için ücretsiz, doğal kadın ve erkek sesleri var; Windows'ta Ayarlar → Saat ve dil → Konuşma bölümünden de ses ekleyebilirsin.",
+  "Only a male voice is available for": "Bu dil için yalnızca erkek sesi var:",
+  "Only a female voice is available for": "Bu dil için yalnızca kadın sesi var:",
 };
+const RTL = new Set(["ar"]);
 const KEYS = Object.keys(TR);
 const zip = (values, code) => {
   if (values.length !== KEYS.length) console.error(`locales/${code}.js has ${values.length} entries, expected ${KEYS.length}`);
@@ -239,6 +248,7 @@ export function translate(root) {
 
 export function applyStatic() {
   document.documentElement.lang = lang;
+  document.documentElement.dir = RTL.has(lang) ? "rtl" : "ltr";
   translate(document.body);
   const picker = document.getElementById("uiLang");
   if (picker && !picker.options.length) {

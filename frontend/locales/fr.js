@@ -89,4 +89,12 @@ export default [
   "importance",
   "tacle",
   "interception",
+  // voice
+  "Voix du commentateur",
+  "Féminine",
+  "Masculine",
+  "Aucune voix de ce navigateur ne parle",
+  "La cabine reste silencieuse plutôt que de lire dans une autre langue. Microsoft Edge propose des voix naturelles gratuites, féminines et masculines, pour les 12 langues ; sous Windows, tu peux aussi en ajouter une dans Paramètres → Heure et langue → Voix.",
+  "Seule une voix masculine est disponible pour :",
+  "Seule une voix féminine est disponible pour :",
 ];

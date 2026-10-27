@@ -1,22 +1,71 @@
 // Reads segments aloud. Uses Azure AI Speech neural voices through the server when configured, and the
 // browser's built-in speech synthesis otherwise (free, works offline). Big moments jump the queue;
 // routine lines are skipped if the queue is already long.
+//
+// A line is only ever read by a voice of its own language: a Turkish voice reading Japanese text says the
+// numbers in Turkish. When the browser has no voice for the language, the booth stays quiet and says why.
+import { speakable } from "./speakable.js";
+
 const LOCALES = { en: "en-GB", tr: "tr-TR", es: "es-ES", de: "de-DE", fr: "fr-FR", pt: "pt-BR", it: "it-IT",
   ar: "ar-SA", nl: "nl-NL", ja: "ja-JP", hi: "hi-IN", sw: "sw-KE" };
-const clean = (text) => text.replace(/^\d+(\+\d+)?'\s*/, "");
+
+// Browsers don't say whether a voice is female or male, so it's read from the name. These are the voices
+// Windows, Edge (the free "Online (Natural)" voices), macOS/iOS and Chrome ship for the 12 languages.
+const FEMALE = new Set(("zira hazel susan sonia libby maisie aria jenny emma ava michelle ana sara " +
+  "emel seda yelda filiz elvira helena laura sabina dalia paloma monica paulina katja hedda amala " +
+  "denise eloise hortense julie vivienne amelie audrey francisca thalita maria luciana fernanda " +
+  "elsa isabella alice federica paola zariyah salma hoda amany laila mariam colette fenna claire ellen " +
+  "nanami ayumi haruka sayaka kyoko mayu aoi swara kalpana heera lekha neerja kavya zuri rehema samantha " +
+  "karen moira tessa veena serena kate fiona anna petra marlene vicki ines joana lucia carmen beatriz " +
+  "female").split(" "));
+const MALE = new Set(("david mark george ryan thomas guy andrew brian christopher eric roger steffan ahmet " +
+  "tolga cem alvaro pablo raul jorge conrad stefan killian florian henri paul remy claude " +
+  "antonio daniel donato francisco diego cosimo giuseppe luca rinaldo hamed naayf maged shakir fahed " +
+  "maarten frank xander arnaud keita ichiro otoya naoki madhur hemant ravi prabhat aarav rafiki daudi " +
+  "alex fred oliver arthur rishi male").split(" "));
+
+const nameWords = (voice) => voice.name.toLowerCase().split(/[^a-z]+/);
+
+function genderOf(voice) {
+  const words = nameWords(voice);
+  if (words.some((w) => FEMALE.has(w))) return "female";
+  if (words.some((w) => MALE.has(w))) return "male";
+  // Chrome's Google voices carry no name; outside English (where they say Male/Female) they are female.
+  return voice.name.startsWith("Google") ? "female" : null;
+}
+
+/** Best browser voice for a language and gender: natural over robotic, the exact locale over a cousin. */
+export function pickVoice(voices, lang, gender) {
+  const locale = LOCALES[lang] || lang;
+  const ours = voices.filter((v) => v.lang.replace("_", "-").toLowerCase().split("-")[0] === lang);
+  if (!ours.length) return { voice: null, gender: null };
+  const score = (v) => (genderOf(v) === gender ? 8 : 0) + (/natural|online|neural|premium|enhanced/i.test(v.name) ? 4 : 0) +
+    (v.lang.replace("_", "-") === locale ? 2 : 0) + (v.localService ? 0 : 1);
+  const voice = ours.reduce((best, v) => (score(v) > score(best) ? v : best));
+  return { voice, gender: genderOf(voice) };
+}
 
 export class Voice {
   constructor() {
     this.enabled = false;
     this.neural = false;
+    this.gender = "female";
     this.queue = [];
     this.speaking = false;
     this.audio = null;
     this.supported = "speechSynthesis" in window;
+    this.voices = this.supported ? speechSynthesis.getVoices() : [];
+    this.warned = new Set();
+    if (this.supported) speechSynthesis.addEventListener?.("voiceschanged", () => { this.voices = speechSynthesis.getVoices(); });
   }
 
   useNeural(on) {
     this.neural = on;
+  }
+
+  setGender(gender) {
+    this.gender = gender === "male" ? "male" : "female";
+    this.warned.clear();
   }
 
   setEnabled(on) {
@@ -31,8 +80,9 @@ export class Voice {
 
   say(text, lang, important = false) {
     if (!this.enabled || !text) return;
-    if (important) this.queue.unshift({ text: clean(text), lang });
-    else if (this.queue.length < 3) this.queue.push({ text: clean(text), lang });
+    const item = { text: speakable(text, lang), lang };
+    if (important) this.queue.unshift(item);
+    else if (this.queue.length < 3) this.queue.push(item);
     this.#next();
   }
 
@@ -52,7 +102,7 @@ export class Voice {
   async #playNeural({ text, lang }) {
     try {
       const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, lang }) });
+        body: JSON.stringify({ text, lang, gender: this.gender }) });
       if (!res.ok) return false;
       const url = URL.createObjectURL(await res.blob());
       this.audio = new Audio(url);
@@ -64,13 +114,26 @@ export class Voice {
     }
   }
 
+  #warn(lang, problem) {
+    const key = `${lang}:${problem}`;
+    if (this.warned.has(key)) return;
+    this.warned.add(key);
+    window.dispatchEvent(new CustomEvent("voicewarning", { detail: { lang, problem } }));
+  }
+
   #playBrowser({ text, lang }) {
     if (!this.supported) return this.#done();
+    if (!this.voices.length) this.voices = speechSynthesis.getVoices();
+    const { voice, gender } = pickVoice(this.voices, lang, this.gender);
+    if (!voice) {
+      this.#warn(lang, "missing"); // reading it with another language's voice would be wrong, numbers included
+      this.queue = this.queue.filter((item) => item.lang !== lang);
+      return this.#done();
+    }
+    if (gender && gender !== this.gender) this.#warn(lang, `only-${gender}`);
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = LOCALES[lang] || lang;
-    const voices = speechSynthesis.getVoices();
-    const voice = voices.find((v) => v.lang === utterance.lang) || voices.find((v) => v.lang.startsWith(lang));
-    if (voice) utterance.voice = voice;
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
     utterance.rate = 1.08;
     utterance.onend = utterance.onerror = this.#done;
     speechSynthesis.speak(utterance);

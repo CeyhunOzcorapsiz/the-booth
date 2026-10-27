@@ -89,4 +89,12 @@ export default [
   "Wichtigkeit",
   "Tackling",
   "abgefangener Ball",
+  // voice
+  "Stimme des Kommentators",
+  "Weiblich",
+  "Männlich",
+  "Keine Stimme in diesem Browser spricht",
+  "Die Kabine bleibt still, statt in einer anderen Sprache vorzulesen. Microsoft Edge hat kostenlose natürliche Stimmen, weiblich und männlich, für alle 12 Sprachen; unter Windows kannst du auch eine unter Einstellungen → Zeit und Sprache → Spracherkennung hinzufügen.",
+  "Nur eine männliche Stimme gibt es für",
+  "Nur eine weibliche Stimme gibt es für",
 ];

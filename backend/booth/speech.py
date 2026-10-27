@@ -17,20 +17,22 @@ from booth.limits import DailyBudget
 
 log = logging.getLogger("booth.speech")
 
+# One female and one male neural voice per broadcast language.
 VOICES = {
-    "en": "en-GB-RyanNeural",
-    "tr": "tr-TR-AhmetNeural",
-    "es": "es-ES-AlvaroNeural",
-    "de": "de-DE-ConradNeural",
-    "fr": "fr-FR-HenriNeural",
-    "pt": "pt-BR-AntonioNeural",
-    "it": "it-IT-DiegoNeural",
-    "ar": "ar-SA-HamedNeural",
-    "nl": "nl-NL-MaartenNeural",
-    "ja": "ja-JP-KeitaNeural",
-    "hi": "hi-IN-MadhurNeural",
-    "sw": "sw-KE-RafikiNeural",
+    "en": {"female": "en-GB-SoniaNeural", "male": "en-GB-RyanNeural"},
+    "tr": {"female": "tr-TR-EmelNeural", "male": "tr-TR-AhmetNeural"},
+    "es": {"female": "es-ES-ElviraNeural", "male": "es-ES-AlvaroNeural"},
+    "de": {"female": "de-DE-KatjaNeural", "male": "de-DE-ConradNeural"},
+    "fr": {"female": "fr-FR-DeniseNeural", "male": "fr-FR-HenriNeural"},
+    "pt": {"female": "pt-BR-FranciscaNeural", "male": "pt-BR-AntonioNeural"},
+    "it": {"female": "it-IT-ElsaNeural", "male": "it-IT-DiegoNeural"},
+    "ar": {"female": "ar-SA-ZariyahNeural", "male": "ar-SA-HamedNeural"},
+    "nl": {"female": "nl-NL-ColetteNeural", "male": "nl-NL-MaartenNeural"},
+    "ja": {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"},
+    "hi": {"female": "hi-IN-SwaraNeural", "male": "hi-IN-MadhurNeural"},
+    "sw": {"female": "sw-KE-ZuriNeural", "male": "sw-KE-RafikiNeural"},
 }
+GENDERS = ("female", "male")
 OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 CACHE_SIZE = 400
 
@@ -54,7 +56,7 @@ class Speech:
         )
         self.chars = DailyBudget(limit)
         self._transport = transport
-        self._cache: OrderedDict[tuple[str, str], bytes] = OrderedDict()
+        self._cache: OrderedDict[tuple[str, str, str], bytes] = OrderedDict()
 
     @property
     def enabled(self) -> bool:
@@ -68,18 +70,18 @@ class Speech:
         }
 
     @staticmethod
-    def ssml(text: str, lang: str) -> str:
-        voice = VOICES.get(lang, VOICES["en"])
+    def ssml(text: str, lang: str, gender: str = "female") -> str:
+        voice = VOICES.get(lang, VOICES["en"])[gender if gender in GENDERS else "female"]
         locale = "-".join(voice.split("-")[:2])
         return (
             f"<speak version='1.0' xml:lang='{locale}'><voice name='{voice}'>"
             f"<prosody rate='+8%'>{escape(text)}</prosody></voice></speak>"
         )
 
-    async def synthesize(self, text: str, lang: str) -> bytes:
+    async def synthesize(self, text: str, lang: str, gender: str = "female") -> bytes:
         if not self.enabled:
             raise SpeechUnavailable("Azure AI Speech is not configured")
-        key = (lang, text)
+        key = (lang, gender, text)
         if key in self._cache:
             self._cache.move_to_end(key)
             return self._cache[key]
@@ -94,7 +96,9 @@ class Speech:
         }
         try:
             async with httpx.AsyncClient(timeout=10, transport=self._transport) as client:
-                response = await client.post(url, headers=headers, content=self.ssml(text, lang).encode())
+                response = await client.post(
+                    url, headers=headers, content=self.ssml(text, lang, gender).encode()
+                )
                 response.raise_for_status()
         except httpx.HTTPError as exc:
             log.warning("speech synthesis failed: %s", exc)

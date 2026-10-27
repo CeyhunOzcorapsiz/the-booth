@@ -89,4 +89,12 @@ export default [
   "importanza",
   "contrasto",
   "intercetto",
+  // voice
+  "Voce del telecronista",
+  "Femminile",
+  "Maschile",
+  "Nessuna voce di questo browser parla",
+  "La cabina resta in silenzio piuttosto che leggere in un'altra lingua. Microsoft Edge ha voci naturali gratuite, femminili e maschili, per tutte le 12 lingue; su Windows puoi anche aggiungerne una in Impostazioni → Data/ora e lingua → Voce.",
+  "C'è solo una voce maschile per",
+  "C'è solo una voce femminile per",
 ];

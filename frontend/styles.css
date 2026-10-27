@@ -33,7 +33,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
 .live.on { color: var(--coral); }
 .live.on i { background: var(--coral); box-shadow: 0 0 0 0 rgba(237, 158, 131, .7); animation: pulse 1.6s infinite; }
 @keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(237, 158, 131, 0); } 100% { box-shadow: 0 0 0 0 rgba(237, 158, 131, 0); } }
-.top-actions { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+.top-actions { margin-inline-start: auto; display: flex; gap: 12px; align-items: center; }
 .badge { font: 600 10px var(--mono); letter-spacing: 1px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); }
 .badge.ai { color: var(--lime); border-color: #4f6430; }
 .badge.muted { text-transform: none; letter-spacing: 0; }
@@ -61,7 +61,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
 .score small { position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--lime); }
 .bars { margin: 14px 0 10px; display: grid; gap: 6px; }
 .bar-row { display: grid; grid-template-columns: max-content 1fr minmax(74px, max-content); align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
-.bar-row > span:last-child { text-align: right; font-family: var(--mono); }
+.bar-row > span:last-child { text-align: end; font-family: var(--mono); }
 .split-bar, .momentum { height: 6px; border-radius: 4px; background: var(--coral); overflow: hidden; position: relative; }
 .split-bar i { display: block; height: 100%; width: 50%; background: var(--lime); transition: width .6s; }
 .momentum { background: #2a3226; }
@@ -89,7 +89,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
 .actor.active circle { opacity: 1; stroke: #fbfff0; stroke-width: .4; }
 .actor.active .label { opacity: 1; }
 .storyline { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; border: 1px solid #56702f; background: linear-gradient(90deg, #26311c, transparent); font-size: 13px; }
-.storyline b { font: 600 10px var(--mono); letter-spacing: 1px; color: var(--lime); margin-right: 8px; }
+.storyline b { font: 600 10px var(--mono); letter-spacing: 1px; color: var(--lime); margin-inline-end: 8px; }
 .event-toast { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(15, 19, 14, .9); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font: 600 12px var(--mono); letter-spacing: .5px; white-space: nowrap; }
 .event-toast.big { border-color: var(--lime); color: var(--lime); font-size: 15px; }
 
@@ -108,8 +108,8 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
 @keyframes slide { from { opacity: 0; transform: translateY(6px); } }
 .moments { list-style: none; margin: 12px 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; min-height: 26px; }
 .moments li { font-size: 11px; padding: 4px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border); }
-.moments li.home { border-left: 3px solid var(--lime); }
-.moments li.away { border-left: 3px solid var(--coral); }
+.moments li.home { border-inline-start: 3px solid var(--lime); }
+.moments li.away { border-inline-start: 3px solid var(--coral); }
 .stats { width: 100%; border-collapse: collapse; font-size: 12px; }
 .stats td { padding: 5px 0; border-top: 1px solid var(--border); }
 .stats td:first-child, .stats td:last-child { width: 56px; font-family: var(--mono); }
@@ -148,7 +148,7 @@ h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
 .agent b { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .agent b i { width: 7px; height: 7px; border-radius: 50%; background: #4b5446; flex: none; }
 .agent small { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-.agent .count { float: right; font: 10px var(--mono); color: var(--muted); }
+.agent .count { float: inline-end; font: 10px var(--mono); color: var(--muted); }
 .agent.active { border-color: var(--amber); }
 .agent.active b i { background: var(--amber); }
 .agent.ok b i { background: var(--lime); }
@@ -219,9 +219,9 @@ dialog select, dialog input[type="number"] { background: var(--panel-2); border:
 .vision-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; }
 .vision video { width: 100%; border-radius: 10px; background: #000; display: block; }
 .vision-metrics { margin-top: 12px; }
-.vision-metrics th { font: 600 10px var(--mono); letter-spacing: 1px; color: var(--muted); text-align: right; padding: 6px 0; }
-.vision-metrics th:first-child, .vision-metrics td:first-child { text-align: left; width: auto; }
-.vision-metrics td { text-align: right; font-family: var(--mono); }
+.vision-metrics th { font: 600 10px var(--mono); letter-spacing: 1px; color: var(--muted); text-align: end; padding: 6px 0; }
+.vision-metrics th:first-child, .vision-metrics td:first-child { text-align: start; width: auto; }
+.vision-metrics td { text-align: end; font-family: var(--mono); }
 .vision-events { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; font-size: 12px; }
 .vision-row { display: grid; grid-template-columns: 52px 74px 40px 1fr auto; gap: 8px; align-items: center; padding: 7px 8px; border-top: 1px solid var(--border); cursor: pointer; border-radius: 6px; }
 .vision-row:hover, .vision-row:focus-visible { background: var(--panel-2); }
@@ -239,7 +239,7 @@ dialog select, dialog input[type="number"] { background: var(--panel-2); border:
 .views { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
 .views button { background: none; border: 0; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--muted); }
 .views button[aria-current="true"] { background: var(--panel-2); color: var(--text); }
-.skip-link { position: absolute; left: 12px; top: -40px; z-index: 10; background: var(--lime); color: #0f130e; padding: 8px 12px; border-radius: 8px; font-weight: 600; }
+.skip-link { position: absolute; inset-inline-start: 12px; top: -40px; z-index: 10; background: var(--lime); color: #0f130e; padding: 8px 12px; border-radius: 8px; font-weight: 600; }
 .skip-link:focus { top: 12px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -274,3 +274,12 @@ dialog select, dialog input[type="number"] { background: var(--panel-2); border:
   .views { order: 3; width: 100%; }
   .views button { flex: 1; }
 }
+
+/* Right-to-left interfaces (Arabic) mirror the page, but everything drawn in pitch coordinates keeps the
+   pitch's orientation (home on the left, Northstar attacking →), so the score bug, bars, pitch, stat card and
+   stats table always agree with the players on the field. Text inside them still runs right to left. */
+[dir="rtl"] .scoreboard, [dir="rtl"] .split-bar, [dir="rtl"] .momentum, [dir="rtl"] .chaos-bar,
+[dir="rtl"] .pitch-wrap, [dir="rtl"] .stats, [dir="rtl"] .stat-card div { direction: ltr; }
+[dir="rtl"] .lower-third, [dir="rtl"] .stat-card > b, [dir="rtl"] .event-toast, [dir="rtl"] .stats td:nth-child(2) { direction: rtl; }
+/* Letter-spacing pulls joined Arabic letters apart; scripts that join or have no case get none. */
+:lang(ar) *, :lang(hi) *, :lang(ja) * { letter-spacing: 0 !important; }

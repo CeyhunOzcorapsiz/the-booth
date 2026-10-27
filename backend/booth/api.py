@@ -7,7 +7,7 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -64,6 +64,9 @@ async def security_headers(request: Request, call_next):
         "font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; media-src 'self' blob:; "
         "frame-ancestors 'none'"
     )
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        # revalidate (cheap, ETag) so a new deploy never runs against stale cached modules
+        response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 
@@ -236,6 +239,7 @@ async def compare(body: CompareRequest, request: Request) -> dict:
 class SpeakRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=400)
     lang: str = "en"
+    gender: Literal["female", "male"] = "female"
 
 
 @app.post("/api/tts", responses={200: {"content": {"audio/mpeg": {}}}})
@@ -245,7 +249,7 @@ async def tts(body: SpeakRequest, request: Request) -> Response:
     if body.lang not in LANGUAGES:
         raise HTTPException(400, "Unsupported language.")
     try:
-        audio = await speech.synthesize(body.text, body.lang)
+        audio = await speech.synthesize(body.text, body.lang, body.gender)
     except SpeechUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})

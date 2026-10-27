@@ -6,6 +6,7 @@ Needs ``pip install -e ".[e2e]"`` and a browser (``playwright install chromium``
 
 from __future__ import annotations
 
+import re
 import socket
 import threading
 import time
@@ -172,3 +173,40 @@ def test_video_to_events_view_opens(page, base_url):
     progress = page.locator(".vision-row").first.or_(page.locator("#visionStatus:not(:empty)"))
     playwright_api.expect(progress).to_be_visible(timeout=10_000)
     assert "Video to events" in view.locator("h2").first.inner_text()
+
+
+FAKE_VOICES = """
+(() => {
+  const voices = [
+    { name: "Microsoft Tolga - Turkish (Turkey)", lang: "tr-TR", localService: true },
+    { name: "Microsoft Nanami Online (Natural) - Japanese (Japan)", lang: "ja-JP", localService: false },
+    { name: "Microsoft Keita Online (Natural) - Japanese (Japan)", lang: "ja-JP", localService: false },
+  ];
+  window.__spoken = [];
+  const synth = {
+    speaking: false, getVoices: () => voices, cancel() {}, addEventListener() {},
+    speak(u) { window.__spoken.push({ text: u.text, voice: u.voice.name, lang: u.lang }); setTimeout(() => u.onend?.(), 5); },
+  };
+  Object.defineProperty(window, "speechSynthesis", { value: synth });
+  window.SpeechSynthesisUtterance = function (text) { this.text = text; };
+})();
+"""
+
+
+def test_voice_matches_language_and_gender_and_never_borrows_another_language(page, base_url):
+    page.add_init_script(FAKE_VOICES)
+    page.goto(f"{base_url}/?live=1&seed=119&lang=ja&style=hype&accessible=1&start=81&speed=90&gender=male")
+    for _ in range(200):  # wait_for_function needs eval, which the page's CSP rightly forbids
+        spoken = page.evaluate("window.__spoken")
+        if len(spoken) >= 2:
+            break
+        page.wait_for_timeout(100)
+    assert {s["voice"] for s in spoken} == {"Microsoft Keita Online (Natural) - Japanese (Japan)"}
+    assert not any(re.search(r"\d-\d", s["text"]) for s in spoken)  # "0-2" is said as "0 対 2", not "minus"
+    assert any("エフシー" in s["text"] for s in spoken)  # "FC" read the Japanese way
+
+    page.goto(f"{base_url}/?live=1&seed=119&lang=fr&style=hype&accessible=1&start=81&speed=90")
+    playwright_api.expect(page.locator("#feed")).to_contain_text(
+        "Aucune voix de ce navigateur", timeout=20_000
+    )
+    assert page.evaluate("window.__spoken.length") == 0  # the Turkish voice never reads French

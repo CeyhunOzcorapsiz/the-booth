@@ -89,4 +89,12 @@ export default [
   "umuhimu",
   "kukaba",
   "kunasa",
+  // voice
+  "Sauti ya mtangazaji",
+  "Mwanamke",
+  "Mwanamume",
+  "Hakuna sauti kwenye kivinjari hiki inayozungumza",
+  "Studio inakaa kimya badala ya kusoma kwa lugha nyingine. Microsoft Edge ina sauti asilia za bure, za kike na za kiume, kwa lugha zote 12; kwenye Windows unaweza pia kuongeza moja kupitia Mipangilio → Wakati na lugha → Usemi.",
+  "Kuna sauti ya kiume tu kwa",
+  "Kuna sauti ya kike tu kwa",
 ];
