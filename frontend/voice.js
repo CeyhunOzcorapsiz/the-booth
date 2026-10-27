@@ -11,20 +11,26 @@ const LOCALES = { en: "en-GB", tr: "tr-TR", es: "es-ES", de: "de-DE", fr: "fr-FR
 
 // Browsers don't say whether a voice is female or male, so it's read from the name. These are the voices
 // Windows, Edge (the free "Online (Natural)" voices), macOS/iOS and Chrome ship for the 12 languages.
-const FEMALE = new Set(("zira hazel susan sonia libby maisie aria jenny emma ava michelle ana sara " +
-  "emel seda yelda filiz elvira helena laura sabina dalia paloma monica paulina katja hedda amala " +
+// Edge writes Arabic, Japanese and Hindi voice names in their own script, so those are listed as written.
+const norm = (text) => text.normalize("NFKD").replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, "").toLowerCase();
+const words = (list) => new Set(norm(list).split(/\s+/));
+const FEMALE = words("zira hazel susan sonia libby maisie aria jenny emma ava michelle ana sara " +
+  "emel seda yelda filiz elvira ximena helena laura sabina dalia paloma monica paulina katja hedda amala " +
   "denise eloise hortense julie vivienne amelie audrey francisca thalita maria luciana fernanda " +
   "elsa isabella alice federica paola zariyah salma hoda amany laila mariam colette fenna claire ellen " +
   "nanami ayumi haruka sayaka kyoko mayu aoi swara kalpana heera lekha neerja kavya zuri rehema samantha " +
-  "karen moira tessa veena serena kate fiona anna petra marlene vicki ines joana lucia carmen beatriz " +
-  "female").split(" "));
-const MALE = new Set(("david mark george ryan thomas guy andrew brian christopher eric roger steffan ahmet " +
+  "karen moira tessa veena serena kate fiona anna petra marlene vicki ines joana lucia carmen beatriz female " +
+  "زارية فاطمة ليلى أمينة سلمى رنا سناء نورا إيمان منى عائشة أمل أماني ريم مريم " +
+  "七海 ななみ स्वरा");
+const MALE = words("david mark george ryan thomas guy andrew brian christopher eric roger steffan ahmet " +
   "tolga cem alvaro pablo raul jorge conrad stefan killian florian henri paul remy claude " +
   "antonio daniel donato francisco diego cosimo giuseppe luca rinaldo hamed naayf maged shakir fahed " +
   "maarten frank xander arnaud keita ichiro otoya naoki madhur hemant ravi prabhat aarav rafiki daudi " +
-  "alex fred oliver arthur rishi male").split(" "));
+  "alex fred oliver arthur rishi male " +
+  "حامد حمدان علي إسماعيل شاكر باسل تيم فهد رامي أحمد جمال عبدالله معاذ ليث هادي صالح " +
+  "圭太 けいた मधुर");
 
-const nameWords = (voice) => voice.name.toLowerCase().split(/[^a-z]+/);
+const nameWords = (voice) => norm(voice.name).split(/[^\p{L}\p{M}]+/u);
 
 function genderOf(voice) {
   const words = nameWords(voice);
