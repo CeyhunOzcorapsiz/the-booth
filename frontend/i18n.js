@@ -213,10 +213,10 @@ function initial() {
     const saved = localStorage.getItem(KEY);
     if (saved in LANG_NAMES) return saved;
   } catch {
-    // storage blocked: fall back to the browser language
+    // storage blocked: start in English
   }
-  const browser = navigator.language?.toLowerCase().slice(0, 2);
-  return browser in LANG_NAMES ? browser : "en";
+  // English until the viewer picks a language (or goes live in one); the browser's language is not a choice.
+  return "en";
 }
 
 let lang = initial();

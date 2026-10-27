@@ -6,6 +6,7 @@
 // numbers in Turkish. When the browser has no voice for the language, the booth stays quiet and says why.
 import { speakable } from "./speakable.js";
 
+const VOICE_WAIT_MS = 3000;
 const LOCALES = { en: "en-GB", tr: "tr-TR", es: "es-ES", de: "de-DE", fr: "fr-FR", pt: "pt-BR", it: "it-IT",
   ar: "ar-SA", nl: "nl-NL", ja: "ja-JP", hi: "hi-IN", sw: "sw-KE" };
 
@@ -63,7 +64,13 @@ export class Voice {
     this.voices = this.supported ? speechSynthesis.getVoices() : [];
     this.warned = new Set();
     this.gen = 0;
-    if (this.supported) speechSynthesis.addEventListener?.("voiceschanged", () => { this.voices = speechSynthesis.getVoices(); });
+    this.missing = new Set();
+    if (this.supported) {
+      speechSynthesis.addEventListener?.("voiceschanged", () => {
+        this.voices = speechSynthesis.getVoices();
+        this.missing.clear();
+      });
+    }
   }
 
   useNeural(on) {
@@ -162,10 +169,24 @@ export class Voice {
     window.dispatchEvent(new CustomEvent("voicewarning", { detail: { lang, problem } }));
   }
 
-  #playBrowser({ text, lang }, done) {
+  /** Edge's natural voices arrive over the network a moment after the page loads; wait for them briefly. */
+  async #voicesFor(lang) {
+    const wait = this.missing.has(lang) ? 0 : VOICE_WAIT_MS; // waited once already: don't stall every line
+    for (let waited = 0; waited <= wait; waited += 250) {
+      this.voices = speechSynthesis.getVoices();
+      const pick = pickVoice(this.voices, lang, this.gender);
+      if (pick.voice) return pick;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    this.missing.add(lang);
+    return { voice: null, gender: null };
+  }
+
+  async #playBrowser({ text, lang }, done) {
     if (!this.supported) return done();
-    if (!this.voices.length) this.voices = speechSynthesis.getVoices();
-    const { voice, gender } = pickVoice(this.voices, lang, this.gender);
+    const gen = this.gen;
+    const { voice, gender } = await this.#voicesFor(lang);
+    if (gen !== this.gen) return done(); // interrupted while waiting for voices
     if (!voice) {
       this.#warn(lang, "missing"); // reading it with another language's voice would be wrong, numbers included
       this.queue = this.queue.filter((item) => item.lang !== lang);

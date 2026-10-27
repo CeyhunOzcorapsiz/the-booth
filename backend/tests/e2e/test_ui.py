@@ -243,3 +243,14 @@ def test_picture_holds_while_a_big_call_is_spoken(page, base_url):
     assert len(goals) >= 2, page.evaluate("window.__spoken")
     # at 90x, 1.5 s of speech is over two match minutes; the clock must not move until the call is finished
     assert all(g["start"] == g["end"] for g in goals), goals
+
+
+def test_first_visit_is_in_english_whatever_the_browser_language(browser, base_url):
+    context = browser.new_context(viewport={"width": 1440, "height": 900}, locale="tr-TR")
+    page = context.new_page()
+    page.goto(base_url)
+    close_setup(page)
+    assert page.locator("html").get_attribute("lang") == "en"
+    assert page.locator(".control-room h2").inner_text() == "Control room"
+    assert page.locator("#lang").input_value() == "en"
+    context.close()
