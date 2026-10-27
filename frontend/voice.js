@@ -62,6 +62,7 @@ export class Voice {
     this.supported = "speechSynthesis" in window;
     this.voices = this.supported ? speechSynthesis.getVoices() : [];
     this.warned = new Set();
+    this.gen = 0;
     if (this.supported) speechSynthesis.addEventListener?.("voiceschanged", () => { this.voices = speechSynthesis.getVoices(); });
   }
 
@@ -76,12 +77,38 @@ export class Voice {
 
   setEnabled(on) {
     this.enabled = on && (this.supported || this.neural);
-    if (!this.enabled) {
-      this.queue = [];
-      if (this.supported) speechSynthesis.cancel();
-      this.audio?.pause();
-      this.speaking = false;
-    }
+    if (!this.enabled) this.interrupt();
+  }
+
+  /** Speak a line now and resolve when it has been said: the live view holds the picture meanwhile. */
+  speak(text, lang) {
+    if (!this.enabled || !text) return Promise.resolve();
+    this.interrupt(); // whatever was being said is about an older moment
+    const gen = this.gen;
+    this.speaking = true;
+    return new Promise((resolve) => {
+      const done = () => {
+        resolve();
+        if (gen !== this.gen) return; // interrupted: a newer line owns the voice now
+        this.speaking = false;
+        this.#next();
+      };
+      this.#play({ text: speakable(text, lang), lang }, done);
+    });
+  }
+
+  /** Stop the current line and drop anything queued (a newer moment is on screen). */
+  interrupt() {
+    this.gen += 1; // end events of the cut-off line arrive later and must not touch the new one
+    this.queue = [];
+    if (this.supported) speechSynthesis.cancel();
+    this.audio?.pause();
+    this.audio = null;
+    this.speaking = false;
+  }
+
+  get busy() {
+    return this.speaking;
   }
 
   say(text, lang, important = false) {
@@ -101,19 +128,27 @@ export class Voice {
     if (this.speaking || !this.queue.length) return;
     const item = this.queue.shift();
     this.speaking = true;
-    if (this.neural && (await this.#playNeural(item))) return;
-    this.#playBrowser(item);
+    const gen = this.gen;
+    this.#play(item, () => { if (gen === this.gen) this.#done(); });
   }
 
-  async #playNeural({ text, lang }) {
+  async #play(item, done) {
+    if (this.neural && (await this.#playNeural(item, done))) return;
+    this.#playBrowser(item, done);
+  }
+
+  async #playNeural({ text, lang }, done) {
     try {
       const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, lang, gender: this.gender }) });
       if (!res.ok) return false;
       const url = URL.createObjectURL(await res.blob());
-      this.audio = new Audio(url);
-      this.audio.onended = this.audio.onerror = () => { URL.revokeObjectURL(url); this.#done(); };
-      await this.audio.play();
+      const audio = new Audio(url);
+      this.audio = audio;
+      let finished = false;
+      const end = () => { if (finished) return; finished = true; URL.revokeObjectURL(url); done(); };
+      audio.onended = audio.onerror = audio.onpause = end;
+      await audio.play();
       return true;
     } catch {
       return false;
@@ -127,21 +162,22 @@ export class Voice {
     window.dispatchEvent(new CustomEvent("voicewarning", { detail: { lang, problem } }));
   }
 
-  #playBrowser({ text, lang }) {
-    if (!this.supported) return this.#done();
+  #playBrowser({ text, lang }, done) {
+    if (!this.supported) return done();
     if (!this.voices.length) this.voices = speechSynthesis.getVoices();
     const { voice, gender } = pickVoice(this.voices, lang, this.gender);
     if (!voice) {
       this.#warn(lang, "missing"); // reading it with another language's voice would be wrong, numbers included
       this.queue = this.queue.filter((item) => item.lang !== lang);
-      return this.#done();
+      return done();
     }
     if (gender && gender !== this.gender) this.#warn(lang, `only-${gender}`);
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
     utterance.lang = voice.lang;
     utterance.rate = 1.08;
-    utterance.onend = utterance.onerror = this.#done;
+    let finished = false;
+    utterance.onend = utterance.onerror = () => { if (!finished) { finished = true; done(); } };
     speechSynthesis.speak(utterance);
   }
 }

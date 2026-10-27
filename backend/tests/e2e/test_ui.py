@@ -179,6 +179,7 @@ FAKE_VOICES = """
 (() => {
   const voices = [
     { name: "Microsoft Tolga - Turkish (Turkey)", lang: "tr-TR", localService: true },
+    { name: "Microsoft Sonia Online (Natural) - English (United Kingdom)", lang: "en-GB", localService: false },
     { name: "Microsoft Nanami Online (Natural) - Japanese (Japan)", lang: "ja-JP", localService: false },
     { name: "Microsoft Keita Online (Natural) - Japanese (Japan)", lang: "ja-JP", localService: false },
   ];
@@ -210,3 +211,35 @@ def test_voice_matches_language_and_gender_and_never_borrows_another_language(pa
         "Aucune voix de ce navigateur", timeout=20_000
     )
     assert page.evaluate("window.__spoken.length") == 0  # the Turkish voice never reads French
+
+
+SLOW_VOICE = FAKE_VOICES.replace(
+    "speak(u) { window.__spoken.push({ text: u.text, voice: u.voice.name, lang: u.lang }); setTimeout(() => u.onend?.(), 5); },",
+    """speak(u) {
+      const minute = () => document.getElementById("minute").textContent;
+      const entry = { text: u.text, start: minute() };
+      window.__spoken.push(entry);
+      u.__timer = setTimeout(() => { entry.end = minute(); u.onend?.(); }, 1500);
+      synth.current = u;
+    },
+    cancel() { if (synth.current) { clearTimeout(synth.current.__timer); synth.current.onerror?.(); synth.current = null; } },""",
+)
+
+
+def test_picture_holds_while_a_big_call_is_spoken(page, base_url):
+    assert SLOW_VOICE != FAKE_VOICES
+    page.add_init_script(SLOW_VOICE)
+    page.goto(f"{base_url}/?live=1&seed=119&lang=en&style=hype&accessible=1&start=77&speed=90")
+    goals = []
+    for _ in range(300):
+        goals = [
+            s
+            for s in page.evaluate("window.__spoken")
+            if s["text"].startswith(("GOAL", "It's in")) and "end" in s
+        ]
+        if len(goals) >= 2:
+            break
+        page.wait_for_timeout(100)
+    assert len(goals) >= 2, page.evaluate("window.__spoken")
+    # at 90x, 1.5 s of speech is over two match minutes; the clock must not move until the call is finished
+    assert all(g["start"] == g["end"] for g in goals), goals

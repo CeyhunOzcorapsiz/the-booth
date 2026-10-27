@@ -1,4 +1,5 @@
 import { Pitch } from "./pitch.js";
+import { Playout } from "./playout.js";
 import { Voice } from "./voice.js";
 import { initCompare } from "./compare.js";
 import { initVision } from "./vision.js";
@@ -51,6 +52,7 @@ let currentMinute = 0;
 let currentPeriod = 1;
 let profile = null;
 let traceSteps = 0;
+let playout = null;
 let llm = { provider: "offline" };
 let liveLabel = "OFF AIR";
 let lastState = null;
@@ -154,13 +156,20 @@ function goLive() {
   if (profile.follow) params.set("follow", profile.follow);
   if (profile.club) params.set("club", profile.club);
   source = openStream(params);
+  playout?.stop();
+  voice.interrupt();
+  playout = new Playout();
+  const later = (type, handle) => source.addEventListener(type, (e) => {
+    const data = JSON.parse(e.data);
+    playout.push(() => handle(data));
+  });
   source.addEventListener("hello", (e) => onHello(JSON.parse(e.data)));
-  source.addEventListener("event", (e) => onEvent(JSON.parse(e.data)));
-  source.addEventListener("segment", (e) => onSegment(JSON.parse(e.data)));
-  source.addEventListener("trace", (e) => onTrace(JSON.parse(e.data)));
-  source.addEventListener("overlay", (e) => onOverlay(JSON.parse(e.data).cue));
+  later("event", onEvent);
+  later("segment", onSegment);
+  later("trace", onTrace);
+  later("overlay", (data) => onOverlay(data.cue));
   source.addEventListener("error", (e) => { if (e.data) addNote(JSON.parse(e.data).message); });
-  source.addEventListener("end", () => { source.close(); setLive(false, "FULL TIME"); });
+  source.addEventListener("end", () => { source.close(); playout.push(() => setLive(false, "FULL TIME")); });
   let onAir = false;
   source.addEventListener("hello", () => { onAir = true; });
   source.onerror = () => {
@@ -284,10 +293,17 @@ function toast(text, big) {
   toastTimer = setTimeout(() => { box.hidden = true; }, big ? 2600 : 1100);
 }
 
+// Big calls hold the picture until they have been said. Routine lines are read only when the voice is free,
+// never hold the picture, and are cut off by the next big call, so the voice never runs behind the pitch.
+const HOLD_IMPORTANCE = 0.5;
+
 function onSegment(seg) {
   $("feed").prepend(segmentCard(seg, llm.model));
   while ($("feed").childElementCount > 120) $("feed").lastElementChild.remove();
-  if (seg.kind !== "stats") voice.say(seg.text, seg.lang, seg.importance >= 0.9);
+  if (seg.kind === "stats" || !voice.enabled) return undefined;
+  if (seg.importance >= HOLD_IMPORTANCE) return voice.speak(seg.text, seg.lang);
+  if (!voice.busy) voice.speak(seg.text, seg.lang);
+  return undefined;
 }
 
 // Broadcast graphics preview: renders the same overlay cues a graphics engine would receive.
