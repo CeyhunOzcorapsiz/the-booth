@@ -1,5 +1,7 @@
 # The Booth
 
+**English** | [Türkçe](README.tr.md)
+
 **An AI broadcast crew that gives every fan their own live match broadcast: in their language, in their style, and fact-checked before it goes on air.**
 
 Built for the Microsoft × Premier League **Inside the Game** developer hackathon. All clubs, players and events are synthetic and generated from a seed. No real match data is used.
