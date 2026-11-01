@@ -60,7 +60,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build image for the smoke test
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true
@@ -80,7 +80,7 @@ jobs:
           curl -fsS -N --max-time 20 "http://localhost:8000/api/broadcast?seed=119&speed=600&start=89" | grep -m1 -q "event: segment"
           docker logs booth
       - name: Publish image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
