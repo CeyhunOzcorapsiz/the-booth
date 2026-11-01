@@ -1,6 +1,6 @@
 """The Booth's stats desk and crew as a Model Context Protocol server.
 
-Lets other agents (GitHub Copilot, Claude, a Foundry agent, ...) query synthetic matches and ask the crew to
+Lets other agents (GitHub Copilot, a Foundry agent, ...) query synthetic matches and ask the crew to
 broadcast a moment, with the same tools and fact-checking the booth uses internally.
 
     python -m booth.mcp_server                    # stdio, for local MCP clients
