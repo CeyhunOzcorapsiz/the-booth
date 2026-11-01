@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - run: pip install ".[vision]"
       - run: python -m booth.static_site --out ../_site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
   deploy:
